@@ -200,3 +200,41 @@ Evaluation return 0.824 at 1.24 h of training (paper: 0.82 at 1.2 h on an H100) 
 The code in this repository is released under the [MIT License](LICENSE).
 
 Copyright (c) 2026 ETH Zurich, Chong Zhang.
+
+## Balance-infantry adaptation
+
+The `feature/infantry-world-model` work keeps the original G1 path intact and
+adds robot-independent world-model components under `supermimic/core`, a
+simulator adapter contract, the verified 14-joint/6-action balance-infantry
+specification, a real mjlab teacher collector, and debug/train configurations.
+
+Local smoke workflow from the repository root:
+
+```powershell
+$py = "E:\Miniforge3\envs\mjlab\python.exe"
+$mj = "E:\science\rl\Sim2Real\mjlab"
+
+& $py tools/import_infantry_asset.py `
+  "$mj\src\mjlab\asset_zoo\robots\infantry"
+
+& $py tools/inspect_infantry_mjcf.py `
+  "$mj\src\mjlab\asset_zoo\robots\infantry\Fudan-2026RoboMaster-Balance.xml"
+
+& $py -m pytest tests -q
+```
+
+Collect a real teacher dataset by passing one existing checkpoint, then train a
+small multi-step world model:
+
+```powershell
+& $py tools/collect_mjlab_teacher.py `
+  --mjlab-root $mj --task wheelleg-flat --checkpoint <model.pt> `
+  --output data/teacher_flat --num-envs 128 --steps 1000
+
+& $py tools/train_world_model.py data/teacher_flat `
+  --output logs/wm_debug --device cuda:0 --window 4 --hidden 256 256
+```
+
+See [the upstream audit](docs/01_UPSTREAM_AUDIT.md) and
+[the robot adapter report](docs/02_ROBOT_ADAPTER.md) for verified dimensions,
+current test coverage, and the Isaac Lab 3 compatibility gate.

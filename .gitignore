@@ -6,7 +6,7 @@ build_*.log
 # upstream checkout (pinned commit cloned by tools/setup.sh)
 IsaacLab/
 # third-party data (downloaded by tools/download_data.sh) and generated assets
-data/
+/data/
 # training runs: checkpoints, logs
 logs/
 *.pt

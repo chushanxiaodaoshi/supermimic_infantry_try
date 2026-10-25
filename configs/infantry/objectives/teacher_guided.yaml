@@ -1,0 +1,11 @@
+mode: teacher_guided
+losses:
+  behavior_cloning: 1.0
+  reference_tracking: 1.0
+  imagined_return: 1.0
+schedule:
+  bc_only_iterations: 1000
+  world_model_warmup_iterations: 500
+reference:
+  enabled: true
+  horizon_frames: 10

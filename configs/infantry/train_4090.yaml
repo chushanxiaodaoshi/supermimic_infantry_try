@@ -1,0 +1,27 @@
+profile: train_4090
+seed: 42
+device: cuda:0
+robot: fudan_2026_balance_infantry
+training_mode: teacher_guided
+num_envs: 4096
+replay_steps_per_env: 1000
+world_model:
+  hidden: [512, 512, 512]
+  window: 8
+  batch_size: 2048
+  batches_per_iteration: 10
+actor:
+  hidden: [512, 256, 128]
+  history: 5
+  bptt_horizon: 16
+  batch_size: 4096
+critic:
+  hidden: [256, 128]
+optimizer:
+  learning_rate: 0.0002
+  max_grad_norm: 1.0
+evaluation:
+  mujoco_interval: 1000
+  num_episodes: 64
+resources:
+  gpu_memory_budget_gib: 22.0
