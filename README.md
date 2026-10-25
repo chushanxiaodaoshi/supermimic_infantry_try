@@ -238,3 +238,19 @@ small multi-step world model:
 See [the upstream audit](docs/01_UPSTREAM_AUDIT.md) and
 [the robot adapter report](docs/02_ROBOT_ADAPTER.md) for verified dimensions,
 current test coverage, and the Isaac Lab 3 compatibility gate.
+
+### 复核修正后的使用边界
+
+采集器目前仅接受 `wheelleg-flat`。它在内存中调整采集配置：关闭随机推力/扭矩、
+将各刚体惯量缩放固定为 1、保留已记录的基座质量随机化，并把摩擦/恢复系数
+随机化限定到两个轮子。具体调整和 seed 写入数据集 manifest；mjlab 源码不变。
+这份数据对应调整后的采集环境，不能当作原 PPO 训练分布完全一致的对照数据。
+
+每次采集必须指定新的或空的输出目录；程序拒绝覆盖已有数据。读取器严格检查
+manifest 与 chunk 文件数量、名称和转移数量，发现残留文件会报错。旧冒烟数据仅用于
+历史流程检查，正式实验应重新采集。窗口采样使用由 `--seed` 控制的独立随机数生成器。
+
+`configs/infantry/*.yaml` 当前是待接入的参数预设，尚未由 CLI 自动加载。
+当前 World Model CLI 支持训练与保存 checkpoint，尚不支持 Resume 和验证集评估；
+Isaac Lab 具体 Adapter、完整 Student Actor/Critic 联合训练仍待实现。
+详见 [复核修正记录](docs/03_REVIEW_FIXES.md)。

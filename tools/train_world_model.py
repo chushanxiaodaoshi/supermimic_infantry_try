@@ -74,7 +74,7 @@ def main() -> None:
     args = parse_args()
     torch.manual_seed(args.seed)
     device = torch.device(args.device)
-    dataset = ChunkDataset(args.dataset)
+    dataset = ChunkDataset(args.dataset, seed=args.seed)
     output = args.output.expanduser().resolve()
     output.mkdir(parents=True, exist_ok=True)
     (output / "args.json").write_text(

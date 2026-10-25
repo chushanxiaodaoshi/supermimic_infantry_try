@@ -8,10 +8,11 @@ states are recorded before an episode is reset.
 from __future__ import annotations
 
 import argparse
-import os
+import subprocess
 import sys
 from dataclasses import asdict
 from pathlib import Path
+from typing import Any
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
@@ -29,7 +30,7 @@ from supermimic.infantry.spec import (
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--mjlab-root", type=Path, required=True)
-    parser.add_argument("--task", default="wheelleg-flat")
+    parser.add_argument("--task", choices=("wheelleg-flat",), default="wheelleg-flat")
     parser.add_argument("--checkpoint", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--num-envs", type=int, default=64)
@@ -38,6 +39,29 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--seed", type=int, default=42)
     return parser.parse_args()
+
+
+def configure_collection(env_cfg: Any, *, seed: int) -> dict[str, Any]:
+    """Constrain collection to dynamics represented by the current WM inputs."""
+    if env_cfg.scene.terrain.terrain_type != "plane":
+        raise ValueError("the current world model has no terrain input; use a plane")
+    env_cfg.seed = seed
+    disabled = ("push_robots", "body_torque")
+    for name in disabled:
+        env_cfg.events.pop(name, None)
+    # The context contains base mass/inertia but not independently varying limb
+    # inertia. Keep base added-mass randomization, fix all per-body scale factors.
+    env_cfg.events["body_mass_inertia"].params["inertia_scale_range"] = (1.0, 1.0)
+    wheels = ("Left_wheel_collision", "Right_wheel_collision")
+    for name in ("wheel_friction", "restitution"):
+        env_cfg.events[name].params["asset_cfg"].geom_names = wheels
+    return {
+        "profile": "flat_observed_dynamics_v1",
+        "disabled_events": list(disabled),
+        "inertia_scale_range": [1.0, 1.0],
+        "randomized_contact_geoms": list(wheels),
+        "seed": seed,
+    }
 
 
 def _state(raw_env, robot) -> torch.Tensor:
@@ -53,6 +77,21 @@ def _state(raw_env, robot) -> torch.Tensor:
             robot.data.joint_pos,
             robot.data.joint_vel,
         ),
+        dim=-1,
+    )
+
+
+def frame_major_history(value: torch.Tensor, history: int = 5) -> torch.Tensor:
+    """Convert mjlab's term-major history to (batch, oldest-first time, obs)."""
+    widths = (3, 3, 3, 4, 6, 6)
+    if value.shape[-1] != history * sum(widths):
+        raise ValueError("unexpected infantry observation history width")
+    terms = value.split(tuple(history * width for width in widths), dim=-1)
+    return torch.cat(
+        [
+            term.reshape(value.shape[0], history, width)
+            for term, width in zip(terms, widths, strict=True)
+        ],
         dim=-1,
     )
 
@@ -149,6 +188,8 @@ def main() -> None:
     checkpoint = args.checkpoint.expanduser().resolve()
     if not checkpoint.is_file():
         raise FileNotFoundError(checkpoint)
+    if args.output.exists() and any(args.output.iterdir()):
+        raise FileExistsError(f"dataset destination must be empty: {args.output}")
 
     from mjlab.envs import ManagerBasedRlEnv
     from mjlab.rl import MjlabOnPolicyRunner, RslRlVecEnvWrapper
@@ -159,6 +200,7 @@ def main() -> None:
     configure_torch_backends()
     torch.manual_seed(args.seed)
     env_cfg = load_env_cfg(args.task, play=False)
+    collection_profile = configure_collection(env_cfg, seed=args.seed)
     env_cfg.scene.num_envs = args.num_envs
     env_cfg.auto_reset = False
     agent_cfg = load_rl_cfg(args.task)
@@ -186,10 +228,12 @@ def main() -> None:
             "source": "mjlab",
             "task": args.task,
             "checkpoint": str(checkpoint),
-            "mjlab_commit": os.popen(f'git -C "{mjlab_root}" rev-parse HEAD')
-            .read()
-            .strip(),
+            "mjlab_commit": subprocess.check_output(
+                ["git", "-C", str(mjlab_root), "rev-parse", "HEAD"], text=True
+            ).strip(),
             "control_dt": raw_env.step_dt,
+            "collection_profile": collection_profile,
+            "observation_history_layout": "frame_major_oldest_first",
         },
     )
     episode_count = torch.zeros(args.num_envs, dtype=torch.long, device=args.device)
@@ -203,7 +247,17 @@ def main() -> None:
                 state = _state(raw_env, robot)
                 command = raw_env.command_manager.get_command("twist")[:, (0, 2, 3)]
                 action = policy(observations)
-                _, reward, terminated, truncated, _ = raw_env.step(action)
+                executed_action = action
+                if agent_cfg.clip_actions is not None:
+                    executed_action = action.clamp(
+                        -agent_cfg.clip_actions, agent_cfg.clip_actions
+                    )
+                if torch.count_nonzero(robot.data.body_external_wrench):
+                    raise RuntimeError(
+                        "unrecorded external wrench in collection environment"
+                    )
+                context = context_view.read()
+                _, reward, terminated, truncated, _ = raw_env.step(executed_action)
                 next_state = _state(raw_env, robot)
                 episode_id = env_index + args.num_envs * episode_count
                 writer.append(
@@ -211,8 +265,8 @@ def main() -> None:
                         "state": state,
                         "next_state": next_state,
                         "actor_observation": observations["actor"],
-                        "observation_history": observations["actor_history"].reshape(
-                            args.num_envs, -1, INFANTRY_SPEC.actor_obs_dim
+                        "observation_history": frame_major_history(
+                            observations["actor_history"]
                         ),
                         "command": command,
                         "teacher_action": action,
@@ -220,7 +274,7 @@ def main() -> None:
                         "reward": reward,
                         "terminated": terminated,
                         "truncated": truncated,
-                        "context": context_view.read(),
+                        "context": context,
                         "timestamp": elapsed,
                         "dt": torch.full_like(elapsed, raw_env.step_dt),
                         "task_id": torch.zeros_like(episode_id),

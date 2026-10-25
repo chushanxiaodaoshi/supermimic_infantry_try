@@ -27,7 +27,13 @@ class ChunkWriter:
         metadata: dict | None = None,
     ):
         self.destination = Path(destination).expanduser().resolve()
+        if chunk_steps <= 0:
+            raise ValueError("chunk_steps must be positive")
         self.destination.mkdir(parents=True, exist_ok=True)
+        if any(self.destination.iterdir()):
+            raise FileExistsError(
+                f"dataset destination must be empty: {self.destination}"
+            )
         self.spec = spec
         self.chunk_steps = chunk_steps
         self.split_seed = split_seed
@@ -46,7 +52,9 @@ class ChunkWriter:
         payload = dict(values)
         payload["split"] = episode_split(payload["episode_id"], self.split_seed)
         for name, value in payload.items():
-            self.pending.setdefault(name, []).append(value.detach().cpu())
+            self.pending.setdefault(name, []).append(
+                value.detach().to("cpu", copy=True)
+            )
         self.pending_steps += 1
         self.transitions += batch
         if self.pending_steps >= self.chunk_steps:
@@ -57,7 +65,8 @@ class ChunkWriter:
             return
         chunk = {name: torch.cat(parts, dim=0) for name, parts in self.pending.items()}
         path = self.destination / f"chunk_{self.chunk_index:06d}.pt"
-        torch.save(chunk, path)
+        with path.open("xb") as stream:
+            torch.save(chunk, stream)
         self.pending.clear()
         self.pending_steps = 0
         self.chunk_index += 1
