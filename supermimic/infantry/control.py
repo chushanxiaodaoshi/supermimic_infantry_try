@@ -6,14 +6,13 @@ import torch
 
 from .spec import INFANTRY_SPEC
 
-ACTION_SCALE = (0.5, 0.5, 10.0, 0.5, 0.5, 10.0)
-
 
 def policy_action_to_control(
     action: torch.Tensor,
     *,
     default_motor_targets: torch.Tensor,
     gas_spring_forces: torch.Tensor,
+    action_scales: torch.Tensor,
 ) -> torch.Tensor:
     """Return four position, two velocity, and two tendon-force commands.
 
@@ -28,7 +27,9 @@ def policy_action_to_control(
         raise ValueError("default_motor_targets must have width 6")
     if gas_spring_forces.shape[-1] != 2:
         raise ValueError("gas_spring_forces must have width 2")
-    scale = action.new_tensor(ACTION_SCALE)
+    if action_scales.shape[-1] != INFANTRY_SPEC.policy_action_dim:
+        raise ValueError("action_scales must have width 6")
+    scale = action_scales.to(device=action.device, dtype=action.dtype)
     scaled = default_motor_targets + action * scale
     # Wheel action offsets are velocity targets and are always zero in mjlab.
     scaled = torch.stack(

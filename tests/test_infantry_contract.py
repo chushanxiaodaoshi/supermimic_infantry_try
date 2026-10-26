@@ -3,6 +3,7 @@ from __future__ import annotations
 import torch
 
 from supermimic.infantry.control import policy_action_to_control
+from supermimic.infantry.replay_contract import ReplayContract, extract_replay_constants
 from supermimic.infantry.spec import INFANTRY_SPEC
 
 
@@ -23,6 +24,7 @@ def test_mixed_action_semantics_are_explicit() -> None:
         action,
         default_motor_targets=offsets,
         gas_spring_forces=springs,
+        action_scales=torch.tensor([0.5, 0.5, 10.0, 0.5, 0.5, 10.0]),
     )
     expected = torch.tensor([0.6, 0.7, 10.0, 0.8, 0.9, 10.0, 290.0, 310.0])
     torch.testing.assert_close(control[0], expected)
@@ -31,3 +33,24 @@ def test_mixed_action_semantics_are_explicit() -> None:
     torch.testing.assert_close(
         action.grad[0], torch.tensor([0.5, 0.5, 10.0, 0.5, 0.5, 10.0])
     )
+
+
+def test_replay_contract_is_extracted_without_importing_replay(tmp_path) -> None:
+    source = tmp_path / "run_policy.py"
+    source.write_text(
+        """
+import definitely_missing_runtime
+import numpy as np
+LEG_JOINTS = ("lf", "lr", "rf", "rr")
+POLICY_JOINTS = ("lf", "lr", "lw", "rf", "rr", "rw")
+ACTION_TARGETS = ("lr", "lf", "lw", "rr", "rf", "rw")
+ACTION_SCALES = np.array((0.5, 0.5, 10.0, 0.5, 0.5, 10.0))
+POLICY_TORQUE_LIMITS = np.array((28.0, 28.0, 4.0, 28.0, 28.0, 4.0))
+""",
+        encoding="utf-8",
+    )
+    constants = extract_replay_constants(source)
+    assert constants["ACTION_TARGETS"][:2] == ("lr", "lf")
+    contract = ReplayContract.from_replay(source)
+    assert contract.observation_dim == 150
+    assert contract.action_scales[2] == 10.0

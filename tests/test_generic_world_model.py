@@ -97,6 +97,9 @@ def test_bptt_updates_actor_without_world_model_parameter_gradients(
             action,
             default_motor_targets=offsets,
             gas_spring_forces=springs,
+            action_scales=torch.tensor(
+                [0.5, 0.5, 10.0, 0.5, 0.5, 10.0], device=action.device
+            ),
         ),
         observe_fn=lambda next_state, action: torch.cat(
             (
