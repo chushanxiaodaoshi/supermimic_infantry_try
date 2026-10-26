@@ -10,9 +10,16 @@ import torch
 from supermimic.core.spec import RobotSpec
 
 
-def episode_split(episode_id: torch.Tensor, seed: int) -> torch.Tensor:
-    """Map whole episodes to train=0, validation=1, test=2."""
-    bucket = ((episode_id * 1_103_515_245 + seed) & 0x7FFF_FFFF) % 100
+def episode_split(
+    episode_id: torch.Tensor,
+    seed: int,
+    run_id: torch.Tensor | None = None,
+) -> torch.Tensor:
+    """Map complete ``(run, episode)`` groups to train=0, validation=1, test=2."""
+    key = episode_id * 1_103_515_245 + seed
+    if run_id is not None:
+        key = key ^ (run_id * 2_654_435_761)
+    bucket = (key & 0x7FFF_FFFF) % 100
     return torch.where(bucket < 80, 0, torch.where(bucket < 90, 1, 2)).to(torch.uint8)
 
 
@@ -50,7 +57,9 @@ class ChunkWriter:
         if any(value.shape[0] != batch for value in values.values()):
             raise ValueError("all transition tensors must share the leading batch size")
         payload = dict(values)
-        payload["split"] = episode_split(payload["episode_id"], self.split_seed)
+        payload["split"] = episode_split(
+            payload["episode_id"], self.split_seed, payload.get("run_id")
+        )
         for name, value in payload.items():
             self.pending.setdefault(name, []).append(
                 value.detach().to("cpu", copy=True)
@@ -78,7 +87,7 @@ class ChunkWriter:
 
     def _write_manifest(self) -> None:
         manifest = {
-            "format_version": 1,
+            "format_version": 2,
             "robot": self.spec.name,
             "state_dim": self.spec.state_dim,
             "actor_obs_dim": self.spec.actor_obs_dim,
@@ -86,7 +95,7 @@ class ChunkWriter:
             "applied_control_names": self.spec.control_names,
             "context_names": self.spec.context_names,
             "split_labels": {"0": "train", "1": "validation", "2": "test"},
-            "split_unit": "episode_id",
+            "split_unit": "(run_id, episode_id)",
             "split_seed": self.split_seed,
             "chunks": self.chunk_index,
             "transitions": self.transitions,

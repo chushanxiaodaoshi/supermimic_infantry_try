@@ -17,6 +17,7 @@ class TransitionRecord:
     observation_history: torch.Tensor
     command: torch.Tensor
     teacher_action: torch.Tensor
+    executed_action: torch.Tensor
     applied_control: torch.Tensor
     reward: torch.Tensor
     terminated: torch.Tensor
@@ -25,7 +26,10 @@ class TransitionRecord:
     timestamp: torch.Tensor
     dt: torch.Tensor
     task_id: torch.Tensor
+    teacher_id: torch.Tensor
+    run_id: torch.Tensor
     episode_id: torch.Tensor
+    motion_phase: torch.Tensor
 
     def validate(self, spec: RobotSpec) -> None:
         widths = {
@@ -34,6 +38,7 @@ class TransitionRecord:
             "actor_observation": (self.actor_observation, spec.actor_obs_dim),
             "command": (self.command, spec.command_dim),
             "teacher_action": (self.teacher_action, spec.policy_action_dim),
+            "executed_action": (self.executed_action, spec.policy_action_dim),
             "applied_control": (self.applied_control, spec.control_dim),
             "context": (self.context, spec.context_dim),
         }
