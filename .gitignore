@@ -2,7 +2,19 @@
 .cache/
 __pycache__/
 *.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
 build_*.log
+# local secrets (keep example configuration trackable)
+.env
+.env.*
+!.env.example
 # upstream checkout (pinned commit cloned by tools/setup.sh)
 IsaacLab/
 # third-party data (downloaded by tools/download_data.sh) and generated assets
@@ -10,6 +22,9 @@ IsaacLab/
 # training runs: checkpoints, logs
 logs/
 *.pt
+*.pt.tmp
+*.pth
+*.ckpt
 # rendered videos and recorded trajectories (derived from CC BY-NC-ND LAFAN1 motions)
 *.mp4
 *.npz
