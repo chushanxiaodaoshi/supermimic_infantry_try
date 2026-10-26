@@ -28,6 +28,8 @@ _REQUIRED = (
     "ACTION_TARGETS",
     "ACTION_SCALES",
     "POLICY_TORQUE_LIMITS",
+    "ACTION_CLIP",
+    "GAS_SPRING_TARGET",
 )
 
 
@@ -67,6 +69,29 @@ def extract_replay_constants(path: Path) -> dict[str, Any]:
         for target in targets:
             if isinstance(target, ast.Name) and target.id in _REQUIRED:
                 values[target.id] = _literal(statement.value)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if (
+                    isinstance(target, ast.Subscript)
+                    and isinstance(target.slice, ast.Attribute)
+                    and target.slice.attr == "gas_ids"
+                ):
+                    values["GAS_SPRING_TARGET"] = float(ast.literal_eval(node.value))
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "np"
+            and node.func.attr == "clip"
+            and len(node.args) >= 3
+            and isinstance(node.args[0], ast.Name)
+            and node.args[0].id == "action"
+        ):
+            values["ACTION_CLIP"] = (
+                float(ast.literal_eval(node.args[1])),
+                float(ast.literal_eval(node.args[2])),
+            )
     missing = sorted(set(_REQUIRED) - values.keys())
     if missing:
         raise ValueError(f"replay source is missing required constants: {missing}")
@@ -82,6 +107,8 @@ class ReplayContract:
     action_targets: tuple[str, ...]
     action_scales: tuple[float, ...]
     torque_limits: tuple[float, ...]
+    action_clip: tuple[float, float]
+    gas_spring_targets: tuple[float, float]
     observation_terms: tuple[str, ...] = (
         "base_ang_vel",
         "projected_gravity",
@@ -94,8 +121,6 @@ class ReplayContract:
     current_observation_dim: int = 25
     history_length: int = 5
     history_layout: str = "term-major"
-    action_clip: tuple[float, float] = (-100.0, 100.0)
-    gas_spring_targets: tuple[float, float] = (300.0, 300.0)
 
     @property
     def observation_dim(self) -> int:
@@ -113,6 +138,11 @@ class ReplayContract:
             action_targets=tuple(constants["ACTION_TARGETS"]),
             action_scales=tuple(float(v) for v in constants["ACTION_SCALES"]),
             torque_limits=tuple(float(v) for v in constants["POLICY_TORQUE_LIMITS"]),
+            action_clip=tuple(float(v) for v in constants["ACTION_CLIP"]),
+            gas_spring_targets=(
+                float(constants["GAS_SPRING_TARGET"]),
+                float(constants["GAS_SPRING_TARGET"]),
+            ),
         )
         contract.validate()
         return contract
@@ -126,6 +156,10 @@ class ReplayContract:
         ):
             if len(values) != 6 or not all(value > 0.0 for value in values):
                 raise ValueError(f"{name} must contain six positive values")
+        if len(self.action_clip) != 2 or self.action_clip[0] >= self.action_clip[1]:
+            raise ValueError("action_clip must be an ascending pair")
+        if len(self.gas_spring_targets) != 2:
+            raise ValueError("gas_spring_targets must contain two values")
         if sum(self.observation_term_dims) != self.current_observation_dim:
             raise ValueError("observation term dimensions do not sum to current width")
         if self.observation_dim != 150:

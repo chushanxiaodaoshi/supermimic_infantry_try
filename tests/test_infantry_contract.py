@@ -52,6 +52,9 @@ POLICY_JOINTS = ("lf", "lr", "lw", "rf", "rr", "rw")
 ACTION_TARGETS = ("lr", "lf", "lw", "rr", "rf", "rw")
 ACTION_SCALES = np.array((0.5, 0.5, 10.0, 0.5, 0.5, 10.0))
 POLICY_TORQUE_LIMITS = np.array((28.0, 28.0, 4.0, 28.0, 28.0, 4.0))
+def run(action):
+    action = np.clip(action, -100.0, 100.0)
+    self.data.ctrl[self.gas_ids] = 300.0
 """,
         encoding="utf-8",
     )
@@ -60,3 +63,5 @@ POLICY_TORQUE_LIMITS = np.array((28.0, 28.0, 4.0, 28.0, 28.0, 4.0))
     contract = ReplayContract.from_replay(source)
     assert contract.observation_dim == 150
     assert contract.action_scales[2] == 10.0
+    assert contract.action_clip == (-100.0, 100.0)
+    assert contract.gas_spring_targets == (300.0, 300.0)
