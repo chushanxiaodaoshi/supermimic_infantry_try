@@ -1,0 +1,25 @@
+asset:
+  replay_source: ${MJLAB_ROOT}/mujoco390/run_policy.py
+  mjcf: ${MJLAB_ROOT}/mujoco390/mjcf/scene.xml
+  usd: ../../../data/infantry_usd/Fudan-2026RoboMaster-Balance/Fudan-2026RoboMaster-Balance.usda
+teacher:
+  name: flat_2026_09_10
+  skill: flat
+  onnx: ${MJLAB_ROOT}/logs/rsl_rl/wheelleg-flat/和gym架构一样的非对称PPO平地/2026-09-10_11-31-50.onnx
+  id: 0
+  task_id: 0
+commands:
+  lin_vel_x: [-2.0, 2.0]
+  ang_vel_z: [0.0, 0.0]
+  height: [0.10, 0.30]
+collection:
+  output: ../../../data/teacher_isaaclab_flat
+  num_envs: 1  # exported ONNX has a fixed batch dimension
+  steps: 20000
+  max_episode_steps: 1000
+  chunk_steps: 128
+  device: cuda:0
+  onnx_provider: CPUExecutionProvider
+  seed: 42
+  split_seed: 2026
+  action_noise_std: 0.0

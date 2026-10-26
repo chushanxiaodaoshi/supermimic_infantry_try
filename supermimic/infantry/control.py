@@ -13,6 +13,7 @@ def policy_action_to_control(
     default_motor_targets: torch.Tensor,
     gas_spring_forces: torch.Tensor,
     action_scales: torch.Tensor,
+    action_targets: tuple[str, ...],
 ) -> torch.Tensor:
     """Return four position, two velocity, and two tendon-force commands.
 
@@ -29,17 +30,22 @@ def policy_action_to_control(
         raise ValueError("gas_spring_forces must have width 2")
     if action_scales.shape[-1] != INFANTRY_SPEC.policy_action_dim:
         raise ValueError("action_scales must have width 6")
+    if set(action_targets) != set(INFANTRY_SPEC.policy_action_names):
+        raise ValueError("action_targets do not match the infantry policy joints")
     scale = action_scales.to(device=action.device, dtype=action.dtype)
-    scaled = default_motor_targets + action * scale
+    scaled_by_teacher = action * scale
+    order = [action_targets.index(name) for name in INFANTRY_SPEC.policy_action_names]
+    ordered = scaled_by_teacher[..., order]
+    scaled = default_motor_targets + ordered
     # Wheel action offsets are velocity targets and are always zero in mjlab.
     scaled = torch.stack(
         (
             scaled[..., 0],
             scaled[..., 1],
-            action[..., 2] * scale[2],
+            ordered[..., 2],
             scaled[..., 3],
             scaled[..., 4],
-            action[..., 5] * scale[5],
+            ordered[..., 5],
         ),
         dim=-1,
     )

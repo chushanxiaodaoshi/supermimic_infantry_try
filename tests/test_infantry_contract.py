@@ -17,7 +17,7 @@ def test_verified_infantry_dimensions() -> None:
 
 
 def test_mixed_action_semantics_are_explicit() -> None:
-    action = torch.ones(2, 6, requires_grad=True)
+    action = torch.arange(1.0, 7.0).repeat(2, 1).requires_grad_()
     offsets = torch.tensor([[0.1, 0.2, 99.0, 0.3, 0.4, -99.0]]).expand(2, -1)
     springs = torch.tensor([[290.0, 310.0]]).expand(2, -1)
     control = policy_action_to_control(
@@ -25,14 +25,20 @@ def test_mixed_action_semantics_are_explicit() -> None:
         default_motor_targets=offsets,
         gas_spring_forces=springs,
         action_scales=torch.tensor([0.5, 0.5, 10.0, 0.5, 0.5, 10.0]),
+        action_targets=(
+            "Left_rear_joint",
+            "Left_front_joint",
+            "Left_Wheel_joint",
+            "Right_rear_joint",
+            "Right_front_joint",
+            "Right_Wheel_joint",
+        ),
     )
-    expected = torch.tensor([0.6, 0.7, 10.0, 0.8, 0.9, 10.0, 290.0, 310.0])
+    expected = torch.tensor([1.1, 0.7, 30.0, 2.8, 2.4, 60.0, 290.0, 310.0])
     torch.testing.assert_close(control[0], expected)
     control.sum().backward()
     assert action.grad is not None
-    torch.testing.assert_close(
-        action.grad[0], torch.tensor([0.5, 0.5, 10.0, 0.5, 0.5, 10.0])
-    )
+    torch.testing.assert_close(action.grad[0], torch.tensor([0.5, 0.5, 10.0, 0.5, 0.5, 10.0]))
 
 
 def test_replay_contract_is_extracted_without_importing_replay(tmp_path) -> None:

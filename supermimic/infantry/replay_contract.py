@@ -8,11 +8,19 @@ from __future__ import annotations
 
 import ast
 import hashlib
+import importlib
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from .spec import (
+    GAS_SPRING_TENDON_NAMES,
+    INFANTRY_JOINT_NAMES,
+    INFANTRY_SPEC,
+    LOOP_EQUALITY_NAMES,
+    POLICY_ACTION_NAMES,
+)
 
 _REQUIRED = (
     "LEG_JOINTS",
@@ -172,4 +180,79 @@ def validate_onnx_contract(path: str | Path, contract: ReplayContract) -> dict[s
         "output_name": outputs[0].name,
         "output_shape": output_shape,
         "metadata": {item.key: item.value for item in model.metadata_props},
+    }
+
+
+def extract_mjcf_physics(path: str | Path, contract: ReplayContract) -> dict[str, Any]:
+    """Read the fixed 73-D physics context from the same MJCF used by replay."""
+    try:
+        mujoco = importlib.import_module("mujoco")
+    except ImportError as exc:  # pragma: no cover - optional development dependency
+        raise RuntimeError("install mujoco to export the asset physics context") from exc
+
+    source = Path(path).expanduser().resolve()
+    model = mujoco.MjModel.from_xml_path(str(source))
+
+    def object_id(kind: Any, name: str) -> int:
+        result = mujoco.mj_name2id(model, kind, name)
+        if result >= 0:
+            return result
+        counts = {
+            mujoco.mjtObj.mjOBJ_ACTUATOR: model.nu,
+            mujoco.mjtObj.mjOBJ_JOINT: model.njnt,
+            mujoco.mjtObj.mjOBJ_GEOM: model.ngeom,
+            mujoco.mjtObj.mjOBJ_BODY: model.nbody,
+            mujoco.mjtObj.mjOBJ_EQUALITY: model.neq,
+            mujoco.mjtObj.mjOBJ_TENDON: model.ntendon,
+        }
+        matches = [
+            index
+            for index in range(counts[kind])
+            if (label := mujoco.mj_id2name(model, kind, index)) is not None
+            and label.rsplit("/", 1)[-1] == name
+        ]
+        if len(matches) != 1:
+            raise ValueError(f"{source}: expected one suffix match for {name}, got {matches}")
+        return matches[0]
+
+    actuator_ids = [
+        object_id(mujoco.mjtObj.mjOBJ_ACTUATOR, name) for name in POLICY_ACTION_NAMES
+    ]
+    joint_ids = [object_id(mujoco.mjtObj.mjOBJ_JOINT, name) for name in INFANTRY_JOINT_NAMES]
+    joint_dofs = [int(model.jnt_dofadr[index]) for index in joint_ids]
+    wheel_geoms = [
+        object_id(mujoco.mjtObj.mjOBJ_GEOM, name)
+        for name in ("Left_wheel_collision", "Right_wheel_collision")
+    ]
+    base = object_id(mujoco.mjtObj.mjOBJ_BODY, "base_link")
+    for name in LOOP_EQUALITY_NAMES:
+        object_id(mujoco.mjtObj.mjOBJ_EQUALITY, name)
+    for name in GAS_SPRING_TENDON_NAMES:
+        object_id(mujoco.mjtObj.mjOBJ_TENDON, name)
+
+    values = [
+        *(float(model.geom_friction[index, 0]) for index in wheel_geoms),
+        float(model.body_mass[base]),
+        *(float(value) for value in model.body_inertia[base]),
+        *(float(value) for value in model.body_ipos[base]),
+        *(float(model.actuator_gainprm[index, 0]) for index in actuator_ids),
+        *(float(model.actuator_biasprm[index, 1]) for index in actuator_ids),
+        *(float(model.actuator_biasprm[index, 2]) for index in actuator_ids),
+        *(float(model.actuator_forcerange[index, 0]) for index in actuator_ids),
+        *(float(model.actuator_forcerange[index, 1]) for index in actuator_ids),
+        *contract.gas_spring_targets,
+        *(float(model.dof_damping[index]) for index in joint_dofs),
+        *(float(model.dof_frictionloss[index]) for index in joint_dofs),
+        *(float(value) for index in wheel_geoms for value in model.geom_solref[index, :2]),
+    ]
+    if len(values) != INFANTRY_SPEC.context_dim:
+        raise RuntimeError(f"physics context width {len(values)} != {INFANTRY_SPEC.context_dim}")
+    return {
+        "path": str(source),
+        "sha256": sha256_file(source),
+        "context_names": list(INFANTRY_SPEC.context_names),
+        "context": values,
+        "timestep": float(model.opt.timestep),
+        "loop_equalities": list(LOOP_EQUALITY_NAMES),
+        "spatial_tendons": list(GAS_SPRING_TENDON_NAMES),
     }

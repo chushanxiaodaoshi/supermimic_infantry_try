@@ -1,0 +1,27 @@
+asset:
+  replay_source: ${MJLAB_ROOT}/mujoco390/run_policy.py
+  mjcf: ${MJLAB_ROOT}/mujoco390/mjcf/scene.xml
+  usd: ../../../data/infantry_usd/Fudan-2026RoboMaster-Balance/Fudan-2026RoboMaster-Balance.usda
+teacher:
+  name: independent_rotation
+  skill: rotation
+  # This deployment artifact is named rough.onnx, but is intentionally registered
+  # as the independent rotation Teacher per the experiment contract.
+  onnx: ${MJLAB_ROOT}/mujoco390/onnx/rough.onnx
+  id: 1
+  task_id: 1
+commands:
+  lin_vel_x: [0.0, 0.0]
+  ang_vel_z: [-4.0, 4.0]
+  height: [0.10, 0.30]
+collection:
+  output: ../../../data/teacher_isaaclab_rotation
+  num_envs: 1
+  steps: 16000
+  max_episode_steps: 1000
+  chunk_steps: 128
+  device: cuda:0
+  onnx_provider: CPUExecutionProvider
+  seed: 43
+  split_seed: 2026
+  action_noise_std: 0.0

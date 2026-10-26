@@ -1,0 +1,25 @@
+asset:
+  replay_source: ${MJLAB_ROOT}/mujoco390/run_policy.py
+  mjcf: ${MJLAB_ROOT}/mujoco390/mjcf/scene.xml
+  usd: ../../../data/infantry_usd/Fudan-2026RoboMaster-Balance/Fudan-2026RoboMaster-Balance.usda
+teacher:
+  name: jump_v8
+  skill: jump
+  onnx: ${MJLAB_ROOT}/mujoco390/onnx/jump.onnx
+  id: 2
+  task_id: 2
+commands:
+  lin_vel_x: [0.0, 0.0]
+  ang_vel_z: [0.0, 0.0]
+  height: [0.0, 0.0]
+collection:
+  output: ../../../data/teacher_isaaclab_jump
+  num_envs: 1
+  steps: 12000
+  max_episode_steps: 300
+  chunk_steps: 128
+  device: cuda:0
+  onnx_provider: CPUExecutionProvider
+  seed: 44
+  split_seed: 2026
+  action_noise_std: 0.0

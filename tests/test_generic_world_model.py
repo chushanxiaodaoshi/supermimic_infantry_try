@@ -100,6 +100,14 @@ def test_bptt_updates_actor_without_world_model_parameter_gradients(
             action_scales=torch.tensor(
                 [0.5, 0.5, 10.0, 0.5, 0.5, 10.0], device=action.device
             ),
+            action_targets=(
+                "Left_rear_joint",
+                "Left_front_joint",
+                "Left_Wheel_joint",
+                "Right_rear_joint",
+                "Right_front_joint",
+                "Right_Wheel_joint",
+            ),
         ),
         observe_fn=lambda next_state, action: torch.cat(
             (
