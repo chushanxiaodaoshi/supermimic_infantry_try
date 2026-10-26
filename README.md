@@ -203,54 +203,45 @@ Copyright (c) 2026 ETH Zurich, Chong Zhang.
 
 ## Balance-infantry adaptation
 
-The `feature/infantry-world-model` work keeps the original G1 path intact and
-adds robot-independent world-model components under `supermimic/core`, a
-simulator adapter contract, the verified 14-joint/6-action balance-infantry
-specification, a real mjlab teacher collector, and debug/train configurations.
+The `feature/infantry-world-model` branch keeps the original G1 path intact. Its
+current scope is deliberately limited to three existing ONNX PPO Teachers
+(flat, independent rotation, jump), Isaac Lab 3 data collection, and shared
+world-model pretraining. It does not train a Student, Actor/Critic, BC/DAgger,
+reference tracker, or BPTT policy.
 
-Local smoke workflow from the repository root:
+Prepare the imported asset and validate all three Teacher contracts:
 
 ```powershell
 $py = "E:\Miniforge3\envs\mjlab\python.exe"
 $mj = "E:\science\rl\Sim2Real\mjlab"
+$env:MJLAB_ROOT = $mj
 
 & $py tools/import_infantry_asset.py `
   "$mj\src\mjlab\asset_zoo\robots\infantry"
-
-& $py tools/inspect_infantry_mjcf.py `
-  "$mj\src\mjlab\asset_zoo\robots\infantry\Fudan-2026RoboMaster-Balance.xml"
-
+& $py tools/collect_isaaclab_teacher.py `
+  --config configs/infantry/collection/isaaclab_rotation.yaml --validate-only
 & $py -m pytest tests -q
 ```
 
-Collect a real teacher dataset by passing one existing checkpoint, then train a
-small multi-step world model:
+Formal collection runs in the pinned Isaac Lab 3 kit-less CUDA image. Each
+configuration writes a new dataset directory and refuses overwrite:
 
-```powershell
-& $py tools/collect_mjlab_teacher.py `
-  --mjlab-root $mj --task wheelleg-flat --checkpoint <model.pt> `
-  --output data/teacher_flat --num-envs 128 --steps 1000
-
-& $py tools/train_world_model.py data/teacher_flat `
-  --output logs/wm_debug --device cuda:0 --window 4 --hidden 256 256
+```bash
+python tools/collect_isaaclab_teacher.py --config configs/infantry/collection/isaaclab_flat.yaml --headless
+python tools/collect_isaaclab_teacher.py --config configs/infantry/collection/isaaclab_rotation.yaml --headless
+python tools/collect_isaaclab_teacher.py --config configs/infantry/collection/isaaclab_jump.yaml --headless
+python tools/train_world_model.py --config configs/infantry/world_model_cloud.yaml
 ```
 
-See [the upstream audit](docs/01_UPSTREAM_AUDIT.md) and
-[the robot adapter report](docs/02_ROBOT_ADAPTER.md) for verified dimensions,
-current test coverage, and the Isaac Lab 3 compatibility gate.
+The world model consumes the actual eight-dimensional simulator control and a
+73-dimensional physics context. Reward is retained only as dataset statistics;
+it is not a dynamics loss. Splits and windows are episode/run aware, weighted
+mixing prevents jump data from being swamped, validation reports each skill and
+1/4/8/16-step state-component errors, and checkpoints include optimizer,
+normalization and RNG state for exact resume.
 
-### 复核修正后的使用边界
-
-采集器目前仅接受 `wheelleg-flat`。它在内存中调整采集配置：关闭随机推力/扭矩、
-将各刚体惯量缩放固定为 1、保留已记录的基座质量随机化，并把摩擦/恢复系数
-随机化限定到两个轮子。具体调整和 seed 写入数据集 manifest；mjlab 源码不变。
-这份数据对应调整后的采集环境，不能当作原 PPO 训练分布完全一致的对照数据。
-
-每次采集必须指定新的或空的输出目录；程序拒绝覆盖已有数据。读取器严格检查
-manifest 与 chunk 文件数量、名称和转移数量，发现残留文件会报错。旧冒烟数据仅用于
-历史流程检查，正式实验应重新采集。窗口采样使用由 `--seed` 控制的独立随机数生成器。
-
-`configs/infantry/*.yaml` 当前是待接入的参数预设，尚未由 CLI 自动加载。
-当前 World Model CLI 支持训练与保存 checkpoint，尚不支持 Resume 和验证集评估；
-Isaac Lab 具体 Adapter、完整 Student Actor/Critic 联合训练仍待实现。
-详见 [复核修正记录](docs/03_REVIEW_FIXES.md)。
+See [Isaac Lab Teacher collection](docs/04_ISAACLAB_TEACHER_COLLECTION.md),
+[the upstream audit](docs/01_UPSTREAM_AUDIT.md), and
+[the robot adapter report](docs/02_ROBOT_ADAPTER.md). The target Isaac Lab CUDA
+integration and real dataset/model results must still be produced on the cloud
+machine; local static validation is not presented as completed training.
