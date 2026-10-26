@@ -6,18 +6,23 @@
 
 ## 已核对的 Teacher
 
-三份模型都经过输入/输出图检查，要求输入 `[1, 150]`、输出 `[1, 6]`：
+Teacher 身份以重放程序实际加载关系为准，而不是从文件名猜测。当前
+`run_policy.py` 的 `--onnx` 默认值是 `rough.onnx`，所以它是默认平地 Teacher；
+完整三策略重放版本（mjlab `3cf0bd7` 的 `run_normal_policy.py`）另外把
+`jump.onnx` 加载为跳跃策略，把 `spin_move_testA++rewardfine1.onnx` 加载为
+独立旋转策略。三份模型均要求输入 `[1, 150]`、输出 `[1, 6]`。
 
 | skill | 文件身份 | SHA-256 |
 |---|---|---|
-| flat | `wheelleg-flat/和gym架构一样的非对称PPO平地/2026-09-10_11-31-50.onnx` | `5fbd941f7a30a6ae6be9196e26bbd6a43d6486667008cc315280295377bdf920` |
-| rotation | 重放目录中的 `rough.onnx`；按实验约定登记为独立旋转 Teacher | `51932e80245ee235bdafd01f14be1672615560f007ce37cf4fe840e49af9df35` |
+| flat | 当前重放默认的 `mujoco390/onnx/rough.onnx` | `51932e80245ee235bdafd01f14be1672615560f007ce37cf4fe840e49af9df35` |
+| rotation | 完整重放的 `mujoco390/onnx/spin_move_testA++rewardfine1.onnx` | `f59a83f332ddddf452af21cfced5bca63c146232e53c5e66325a3a54c1bb0fe7`（mjlab `3cf0bd7`） |
 | jump | 重放目录中的 `jump.onnx`（元数据指向 jump-v8） | `94624b748f7e28b14b890b2ecd0b243050109c68b3d1c09cda4ab7a112e5109a` |
 
 较新的 flat 导出 `2026-09-10_17-25-15.onnx` 是 162 维输入，不能套用当前
-150 维重放历史，采集器会拒绝它。`rough.onnx` 的文件名及源 checkpoint 元数据不能
-改变本实验中“独立旋转 Teacher”的身份；采集 manifest 同时保留路径、哈希和原始
-ONNX 元数据，避免掩盖来源。
+150 维重放历史，采集器会拒绝它。旋转权重存在于 mjlab 历史提交 `3cf0bd7`，但不在
+当前 `data_play_try` checkout；云端采集前应切到/导出该提交中的准确文件，或用
+`--onnx` 指向同一权重，不能回退成 `rough.onnx`。采集 manifest 会保留实际路径、
+哈希和原始 ONNX 元数据，避免掩盖来源。
 
 ## Isaac Lab 3 适配边界
 
@@ -72,6 +77,7 @@ python tools/collect_isaaclab_teacher.py \
 ## 尚未在本机完成的验证
 
 本机没有运行目标 Isaac Lab 3 CUDA 容器，因此这里只完成静态编译、控制/数据单测、
-三 Teacher ONNX 与 MJCF 契约检查。必须在云端先各跑一个短 episode，确认 USD importer
+当前 checkout 中 flat、jump ONNX 与 MJCF 契约检查，以及历史旋转 ONNX 的离线图检查。
+必须在云端先各跑一个短 episode，确认 USD importer
 确实保留四个 equality、两个 spatial tendon 及原生 actuator，再扩大采集。当前不能
 宣称 Isaac Lab 数据已经产生，也不能用 mjlab 冒烟结果代替这项验证。

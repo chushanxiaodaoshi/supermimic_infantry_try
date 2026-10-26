@@ -5,15 +5,16 @@ asset:
 teacher:
   name: independent_rotation
   skill: rotation
-  # This deployment artifact is named rough.onnx, but is intentionally registered
-  # as the independent rotation Teacher per the experiment contract.
-  onnx: ${MJLAB_ROOT}/mujoco390/onnx/rough.onnx
+  # This is the independent spin policy selected by run_normal_policy.py at
+  # mjlab commit 3cf0bd7.  It is separate from the default rough.onnx policy.
+  onnx: ${MJLAB_ROOT}/mujoco390/onnx/spin_move_testA++rewardfine1.onnx
   id: 1
   task_id: 1
 commands:
   lin_vel_x: [0.0, 0.0]
-  ang_vel_z: [-4.0, 4.0]
-  height: [0.10, 0.30]
+  # Match the in-place spin branch in that replay: no direction key held.
+  ang_vel_z: [8.0, 8.0]
+  height: [0.15, 0.15]
 collection:
   output: ../../../data/teacher_isaaclab_rotation
   num_envs: 1

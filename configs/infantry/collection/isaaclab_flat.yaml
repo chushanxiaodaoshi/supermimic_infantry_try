@@ -3,9 +3,11 @@ asset:
   mjcf: ${MJLAB_ROOT}/mujoco390/mjcf/scene.xml
   usd: ../../../data/infantry_usd/Fudan-2026RoboMaster-Balance/Fudan-2026RoboMaster-Balance.usda
 teacher:
-  name: flat_2026_09_10
+  # run_policy.py loads rough.onnx as its default locomotion policy.  "rough" is
+  # the artifact filename/session label, not the skill assigned to this dataset.
+  name: flat_default_replay
   skill: flat
-  onnx: ${MJLAB_ROOT}/logs/rsl_rl/wheelleg-flat/和gym架构一样的非对称PPO平地/2026-09-10_11-31-50.onnx
+  onnx: ${MJLAB_ROOT}/mujoco390/onnx/rough.onnx
   id: 0
   task_id: 0
 commands:
