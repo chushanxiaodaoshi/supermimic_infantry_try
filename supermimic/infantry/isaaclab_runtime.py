@@ -1,9 +1,10 @@
 """Isaac Lab 3/MuJoCo-Warp runtime for infantry Teacher collection.
 
-This is an adapter layer: the imported MJCF/USD keeps its native closed loops,
-servo gains and spatial gas-spring tendons.  The only backend override bypasses
-Isaac Lab's current rejection of spatial tendons and routes their native MuJoCo
-actuators through the existing tendon-control bridge.
+This is an adapter layer: the robot USD keeps its native closed loops and
+spatial gas-spring tendons, while servo gains come from the replay MJCF
+contract. The only backend override bypasses Isaac Lab's current rejection of
+spatial tendons and routes their native MuJoCo actuators through the existing
+tendon-control bridge.
 """
 
 from __future__ import annotations
@@ -65,10 +66,16 @@ class SpatialTendonArticulation(Articulation):
         names = _short_labels(self._root_view.tendon_names)
         missing = set(GAS_SPRING_TENDON_NAMES) - names
         if missing:
-            raise RuntimeError(f"imported asset is missing gas-spring tendons: {sorted(missing)}")
-        self._fixed_tendon_control = self._backend_manager.create_fixed_tendon_control(self)
+            raise RuntimeError(
+                f"imported asset is missing gas-spring tendons: {sorted(missing)}"
+            )
+        self._fixed_tendon_control = self._backend_manager.create_fixed_tendon_control(
+            self
+        )
         if self._fixed_tendon_control is None:
-            raise RuntimeError("spatial tendons exist but have no native MuJoCo actuators")
+            raise RuntimeError(
+                "spatial tendons exist but have no native MuJoCo actuators"
+            )
 
         attributes = getattr(model, "custom_attributes", {})
         equality_labels = attributes.get("mujoco:equality_constraint_label")
@@ -76,7 +83,9 @@ class SpatialTendonArticulation(Articulation):
             raise RuntimeError("backend exposes no MuJoCo equality constraints")
         missing = set(LOOP_EQUALITY_NAMES) - _short_labels(equality_labels)
         if missing:
-            raise RuntimeError(f"imported asset lost loop equalities: {sorted(missing)}")
+            raise RuntimeError(
+                f"imported asset lost loop equalities: {sorted(missing)}"
+            )
 
 
 def make_sim_cfg(device: str, control_dt: float):
@@ -93,8 +102,20 @@ def make_sim_cfg(device: str, control_dt: float):
     return sim_utils.SimulationCfg(dt=control_dt, device=device, physics=physics)
 
 
-def make_robot_cfg(usd_path: Path, contract: ReplayContract) -> ArticulationCfg:
-    effort_by_joint = dict(zip(contract.action_targets, contract.torque_limits, strict=True))
+def make_robot_cfg(
+    usd_path: Path,
+    contract: ReplayContract,
+    controller: Mapping[str, Mapping[str, float | str]],
+) -> ArticulationCfg:
+    effort_by_joint = dict(
+        zip(contract.action_targets, contract.torque_limits, strict=True)
+    )
+    stiffness = {
+        name: float(controller[name]["stiffness"]) for name in contract.policy_joints
+    }
+    damping = {
+        name: float(controller[name]["damping"]) for name in contract.policy_joints
+    }
     return ArticulationCfg(
         class_type=SpatialTendonArticulation,
         prim_path="{ENV_REGEX_NS}/Robot",
@@ -117,20 +138,27 @@ def make_robot_cfg(usd_path: Path, contract: ReplayContract) -> ArticulationCfg:
         actuators={
             "replay_servos": ImplicitActuatorCfg(
                 joint_names_expr=list(contract.policy_joints),
-                stiffness=None,
-                damping=None,
+                stiffness=stiffness,
+                damping=damping,
                 joint_effort_limit=effort_by_joint,
             )
         },
     )
 
 
-def make_scene_cfg(num_envs: int, usd_path: Path, contract: ReplayContract):
-    robot_cfg = make_robot_cfg(usd_path, contract)
+def make_scene_cfg(
+    num_envs: int,
+    usd_path: Path,
+    contract: ReplayContract,
+    controller: Mapping[str, Mapping[str, float | str]],
+):
+    robot_cfg = make_robot_cfg(usd_path, contract, controller)
 
     @configclass
     class InfantrySceneCfg(InteractiveSceneCfg):
-        ground = AssetBaseCfg(prim_path="/World/ground", spawn=sim_utils.GroundPlaneCfg())
+        ground = AssetBaseCfg(
+            prim_path="/World/ground", spawn=sim_utils.GroundPlaneCfg()
+        )
         robot = robot_cfg
 
     return InfantrySceneCfg(num_envs=num_envs, env_spacing=2.0, replicate_physics=True)
@@ -150,7 +178,9 @@ class ReplayObservation:
     def reset(self, env_ids: torch.Tensor) -> None:
         self.initialized[env_ids] = False
 
-    def build(self, terms: Mapping[str, torch.Tensor]) -> tuple[torch.Tensor, torch.Tensor]:
+    def build(
+        self, terms: Mapping[str, torch.Tensor]
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         missing = set(self.history) - set(terms)
         if missing:
             raise ValueError(f"missing replay observation terms: {sorted(missing)}")
@@ -163,7 +193,9 @@ class ReplayObservation:
                 history[uninitialized] = value[uninitialized, None, :]
         self.initialized[:] = True
         current = torch.cat([terms[name] for name in self.history], dim=-1)
-        term_major = torch.cat([value.flatten(1) for value in self.history.values()], dim=-1)
+        term_major = torch.cat(
+            [value.flatten(1) for value in self.history.values()], dim=-1
+        )
         return current, torch.cat((current, term_major), dim=-1)
 
 
@@ -178,13 +210,16 @@ class InfantryCollectionSim:
         usd_path: Path,
         contract: ReplayContract,
         context: torch.Tensor,
+        controller: Mapping[str, Mapping[str, float | str]],
         command_ranges: Mapping[str, tuple[float, float]],
         max_episode_steps: int,
         seed: int,
     ):
         self.device = sim_cfg.device
         self.sim = SimulationContext(sim_cfg)
-        self.scene = instantiate(make_scene_cfg(num_envs, usd_path, contract))
+        self.scene = instantiate(
+            make_scene_cfg(num_envs, usd_path, contract, controller)
+        )
         self.sim.reset()
         self.robot = self.scene["robot"]
         if tuple(self.robot.joint_names) != INFANTRY_JOINT_NAMES:
@@ -237,10 +272,16 @@ class InfantryCollectionSim:
         _, rotation, _, angular_velocity, q, qd = state
         rotation_t = rotation.transpose(-1, -2)
         body_ang = (rotation_t @ angular_velocity.unsqueeze(-1)).squeeze(-1)
-        gravity = torch.tensor((0.0, 0.0, -1.0), device=self.device).expand(self.num_envs, -1)
+        gravity = torch.tensor((0.0, 0.0, -1.0), device=self.device).expand(
+            self.num_envs, -1
+        )
         projected_gravity = (rotation_t @ gravity.unsqueeze(-1)).squeeze(-1)
-        leg_ids = [self.robot.joint_names.index(name) for name in self.contract.leg_joints]
-        policy_ids = [self.robot.joint_names.index(name) for name in self.contract.policy_joints]
+        leg_ids = [
+            self.robot.joint_names.index(name) for name in self.contract.leg_joints
+        ]
+        policy_ids = [
+            self.robot.joint_names.index(name) for name in self.contract.policy_joints
+        ]
         terms = {
             "base_ang_vel": body_ang.clamp(-20.0, 20.0) * 0.25,
             "projected_gravity": projected_gravity,
@@ -261,7 +302,9 @@ class InfantryCollectionSim:
         root_velocity = self.robot.data.default_root_vel.torch[env_ids].clone()
         q = self.robot.data.default_joint_pos.torch[env_ids].clone()
         qd = self.robot.data.default_joint_vel.torch[env_ids].clone()
-        self.robot.write_root_link_pose_to_sim_index(root_pose=root_pose, env_ids=env_ids)
+        self.robot.write_root_link_pose_to_sim_index(
+            root_pose=root_pose, env_ids=env_ids
+        )
         self.robot.write_root_link_velocity_to_sim_index(
             root_velocity=root_velocity, env_ids=env_ids
         )
@@ -287,7 +330,9 @@ class InfantryCollectionSim:
         state = self.state()
         action = teacher_action.clamp(*self.contract.action_clip)
         zeros = torch.zeros_like(action)
-        springs = action.new_tensor(self.contract.gas_spring_targets).expand(self.num_envs, -1)
+        springs = action.new_tensor(self.contract.gas_spring_targets).expand(
+            self.num_envs, -1
+        )
         control = policy_action_to_control(
             action,
             default_motor_targets=zeros,
@@ -297,7 +342,9 @@ class InfantryCollectionSim:
         )
         target_position = self.robot.data.joint_pos.torch.clone()
         target_velocity = torch.zeros_like(target_position)
-        target_position[:, self.policy_joint_ids[[0, 1, 3, 4]]] = control[:, [0, 1, 3, 4]]
+        target_position[:, self.policy_joint_ids[[0, 1, 3, 4]]] = control[
+            :, [0, 1, 3, 4]
+        ]
         target_velocity[:, self.policy_joint_ids[[2, 5]]] = control[:, [2, 5]]
         self.robot.set_joint_position_target_index(target=target_position)
         self.robot.set_joint_velocity_target_index(target=target_velocity)

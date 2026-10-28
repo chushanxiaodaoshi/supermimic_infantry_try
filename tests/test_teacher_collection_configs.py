@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import yaml
+
+from tools.collect_isaaclab_teacher import load_config
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_DIR = ROOT / "configs" / "infantry" / "collection"
@@ -34,3 +37,32 @@ def test_rotation_collection_matches_in_place_spin_replay_command() -> None:
         "ang_vel_z": [8.0, 8.0],
         "height": [0.15, 0.15],
     }
+
+
+def test_collection_steps_can_be_overridden_from_cli(tmp_path) -> None:
+    config_path = tmp_path / "collection.yaml"
+    config_path.write_text(
+        yaml.safe_dump(
+            {
+                "asset": {
+                    "replay_source": "replay.py",
+                    "mjcf": "robot.xml",
+                    "usd": "robot.usda",
+                },
+                "teacher": {"onnx": "teacher.onnx"},
+                "collection": {"output": "output", "steps": 20_000},
+            }
+        ),
+        encoding="utf-8",
+    )
+    args = SimpleNamespace(
+        config=config_path,
+        replay=None,
+        mjcf=None,
+        usd=None,
+        onnx=None,
+        output=None,
+        steps=200,
+        validate_only=False,
+    )
+    assert load_config(args)["collection"]["steps"] == 200

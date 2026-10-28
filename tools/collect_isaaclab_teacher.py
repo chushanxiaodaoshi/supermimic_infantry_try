@@ -35,6 +35,7 @@ def _parser(with_launcher: bool = False) -> argparse.ArgumentParser:
     parser.add_argument("--usd", type=Path)
     parser.add_argument("--onnx", type=Path)
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--steps", type=int)
     parser.add_argument("--validate-only", action="store_true")
     if with_launcher:
         from isaaclab.app import add_launcher_args
@@ -69,6 +70,10 @@ def load_config(args: argparse.Namespace) -> dict[str, Any]:
     for section, key, value in overrides:
         if value is not None:
             section[key] = value
+    if args.steps is not None:
+        if args.steps <= 0:
+            raise ValueError("--steps must be positive")
+        collection["steps"] = args.steps
     for section, keys in (
         (asset, ("replay_source", "mjcf", "usd")),
         (teacher, ("onnx",)),
@@ -84,7 +89,9 @@ def load_config(args: argparse.Namespace) -> dict[str, Any]:
     missing = [name for name, value in required.items() if value is None]
     if missing:
         raise ValueError(f"missing required config paths: {missing}")
-    if not args.validate_only and (asset["usd"] is None or collection["output"] is None):
+    if not args.validate_only and (
+        asset["usd"] is None or collection["output"] is None
+    ):
         raise ValueError("asset.usd and collection.output are required for collection")
     config["config_path"] = config_path
     return config
@@ -118,10 +125,14 @@ class OnnxTeacher:
         try:
             import onnxruntime as ort
         except ImportError as exc:
-            raise RuntimeError("install onnxruntime-gpu in the collection image") from exc
+            raise RuntimeError(
+                "install onnxruntime-gpu in the collection image"
+            ) from exc
         available = set(ort.get_available_providers())
         if provider not in available:
-            raise RuntimeError(f"ONNX provider {provider!r} unavailable; found {sorted(available)}")
+            raise RuntimeError(
+                f"ONNX provider {provider!r} unavailable; found {sorted(available)}"
+            )
         self.session = ort.InferenceSession(str(path), providers=[provider])
         self.input_name = self.session.get_inputs()[0].name
         self.fixed_batch = self.session.get_inputs()[0].shape[0] == 1
@@ -129,13 +140,18 @@ class OnnxTeacher:
     def __call__(self, observation: torch.Tensor) -> torch.Tensor:
         value = observation.detach().cpu().numpy()
         if self.fixed_batch and value.shape[0] != 1:
-            outputs = [self.session.run(None, {self.input_name: row[None]})[0][0] for row in value]
+            outputs = [
+                self.session.run(None, {self.input_name: row[None]})[0][0]
+                for row in value
+            ]
             import numpy as np
 
             result = np.stack(outputs)
         else:
             result = self.session.run(None, {self.input_name: value})[0]
-        return torch.as_tensor(result, device=observation.device, dtype=observation.dtype)
+        return torch.as_tensor(
+            result, device=observation.device, dtype=observation.dtype
+        )
 
 
 def _git_commit(path: Path) -> str:
@@ -144,12 +160,18 @@ def _git_commit(path: Path) -> str:
     ).strip()
 
 
-def collect(args: argparse.Namespace, config: dict[str, Any], contract, teacher_info, physics) -> None:
+def collect(
+    args: argparse.Namespace, config: dict[str, Any], contract, teacher_info, physics
+) -> None:
     from isaaclab.app import launch_simulation
 
     from supermimic.infantry.isaaclab_runtime import InfantryCollectionSim, make_sim_cfg
 
-    asset, teacher_cfg, collection = config["asset"], config["teacher"], config["collection"]
+    asset, teacher_cfg, collection = (
+        config["asset"],
+        config["teacher"],
+        config["collection"],
+    )
     output = collection["output"]
     if output.exists() and any(output.iterdir()):
         raise FileExistsError(f"dataset destination must be empty: {output}")
@@ -166,9 +188,9 @@ def collect(args: argparse.Namespace, config: dict[str, Any], contract, teacher_
             usd_path=asset["usd"],
             contract=contract,
             context=torch.tensor(physics["context"], dtype=torch.float32),
+            controller=physics["controller"],
             command_ranges={
-                key: tuple(value)
-                for key, value in config["commands"].items()
+                key: tuple(value) for key, value in config["commands"].items()
             },
             max_episode_steps=int(collection.get("max_episode_steps", 1000)),
             seed=seed,
@@ -184,7 +206,8 @@ def collect(args: argparse.Namespace, config: dict[str, Any], contract, teacher_
             "isaaclab_commit": "46d6cc3d7b115906fad12efd372fbf69f4e3d3ed",
             "supermimic_commit": _git_commit(REPO),
             "collection_run_uuid": str(run_uuid),
-            "teacher": teacher_info | {
+            "teacher": teacher_info
+            | {
                 "name": teacher_cfg["name"],
                 "skill": teacher_cfg["skill"],
                 "teacher_id": int(teacher_cfg["id"]),
@@ -258,7 +281,9 @@ def collect(args: argparse.Namespace, config: dict[str, Any], contract, teacher_
                 "transitions": writer.transitions,
                 "transitions_per_second": writer.transitions / max(duration, 1.0e-9),
                 "gpu_peak_bytes": (
-                    torch.cuda.max_memory_allocated(device) if torch.cuda.is_available() else 0
+                    torch.cuda.max_memory_allocated(device)
+                    if torch.cuda.is_available()
+                    else 0
                 ),
             }
             writer.close()

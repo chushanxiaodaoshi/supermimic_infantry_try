@@ -63,7 +63,11 @@ def extract_replay_constants(path: Path) -> dict[str, Any]:
     for statement in tree.body:
         if not isinstance(statement, (ast.Assign, ast.AnnAssign)):
             continue
-        targets = statement.targets if isinstance(statement, ast.Assign) else [statement.target]
+        targets = (
+            statement.targets
+            if isinstance(statement, ast.Assign)
+            else [statement.target]
+        )
         if statement.value is None:
             continue
         for target in targets:
@@ -163,7 +167,9 @@ class ReplayContract:
         if sum(self.observation_term_dims) != self.current_observation_dim:
             raise ValueError("observation term dimensions do not sum to current width")
         if self.observation_dim != 150:
-            raise ValueError(f"expected replay observation width 150, got {self.observation_dim}")
+            raise ValueError(
+                f"expected replay observation width 150, got {self.observation_dim}"
+            )
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self) | {"observation_dim": self.observation_dim}
@@ -177,7 +183,9 @@ class ReplayContract:
         )
 
 
-def validate_onnx_contract(path: str | Path, contract: ReplayContract) -> dict[str, Any]:
+def validate_onnx_contract(
+    path: str | Path, contract: ReplayContract
+) -> dict[str, Any]:
     """Check model dimensions and identity without starting ONNX Runtime."""
     try:
         import onnx
@@ -205,7 +213,9 @@ def validate_onnx_contract(path: str | Path, contract: ReplayContract) -> dict[s
             f"got {input_shape}"
         )
     if len(output_shape) != 2 or output_shape[-1] != len(contract.action_targets):
-        raise ValueError(f"{model_path}: Teacher output must end in 6, got {output_shape}")
+        raise ValueError(
+            f"{model_path}: Teacher output must end in 6, got {output_shape}"
+        )
     return {
         "path": str(model_path),
         "sha256": sha256_file(model_path),
@@ -222,7 +232,9 @@ def extract_mjcf_physics(path: str | Path, contract: ReplayContract) -> dict[str
     try:
         mujoco = importlib.import_module("mujoco")
     except ImportError as exc:  # pragma: no cover - optional development dependency
-        raise RuntimeError("install mujoco to export the asset physics context") from exc
+        raise RuntimeError(
+            "install mujoco to export the asset physics context"
+        ) from exc
 
     source = Path(path).expanduser().resolve()
     model = mujoco.MjModel.from_xml_path(str(source))
@@ -246,13 +258,38 @@ def extract_mjcf_physics(path: str | Path, contract: ReplayContract) -> dict[str
             and label.rsplit("/", 1)[-1] == name
         ]
         if len(matches) != 1:
-            raise ValueError(f"{source}: expected one suffix match for {name}, got {matches}")
+            raise ValueError(
+                f"{source}: expected one suffix match for {name}, got {matches}"
+            )
         return matches[0]
 
     actuator_ids = [
         object_id(mujoco.mjtObj.mjOBJ_ACTUATOR, name) for name in POLICY_ACTION_NAMES
     ]
-    joint_ids = [object_id(mujoco.mjtObj.mjOBJ_JOINT, name) for name in INFANTRY_JOINT_NAMES]
+    controller: dict[str, dict[str, float | str]] = {}
+    for name, index in zip(POLICY_ACTION_NAMES, actuator_ids, strict=True):
+        gain = float(model.actuator_gainprm[index, 0])
+        position_bias = float(model.actuator_biasprm[index, 1])
+        velocity_bias = float(model.actuator_biasprm[index, 2])
+        if abs(position_bias + gain) < 1.0e-9:
+            control_type = "position"
+            stiffness = gain
+        elif abs(position_bias) < 1.0e-9:
+            control_type = "velocity"
+            stiffness = 0.0
+        else:
+            raise ValueError(
+                f"{source}: actuator {name} is neither the replay position nor "
+                "velocity controller"
+            )
+        controller[name] = {
+            "type": control_type,
+            "stiffness": stiffness,
+            "damping": -velocity_bias,
+        }
+    joint_ids = [
+        object_id(mujoco.mjtObj.mjOBJ_JOINT, name) for name in INFANTRY_JOINT_NAMES
+    ]
     joint_dofs = [int(model.jnt_dofadr[index]) for index in joint_ids]
     wheel_geoms = [
         object_id(mujoco.mjtObj.mjOBJ_GEOM, name)
@@ -277,10 +314,16 @@ def extract_mjcf_physics(path: str | Path, contract: ReplayContract) -> dict[str
         *contract.gas_spring_targets,
         *(float(model.dof_damping[index]) for index in joint_dofs),
         *(float(model.dof_frictionloss[index]) for index in joint_dofs),
-        *(float(value) for index in wheel_geoms for value in model.geom_solref[index, :2]),
+        *(
+            float(value)
+            for index in wheel_geoms
+            for value in model.geom_solref[index, :2]
+        ),
     ]
     if len(values) != INFANTRY_SPEC.context_dim:
-        raise RuntimeError(f"physics context width {len(values)} != {INFANTRY_SPEC.context_dim}")
+        raise RuntimeError(
+            f"physics context width {len(values)} != {INFANTRY_SPEC.context_dim}"
+        )
     return {
         "path": str(source),
         "sha256": sha256_file(source),
@@ -289,4 +332,5 @@ def extract_mjcf_physics(path: str | Path, contract: ReplayContract) -> dict[str
         "timestep": float(model.opt.timestep),
         "loop_equalities": list(LOOP_EQUALITY_NAMES),
         "spatial_tendons": list(GAS_SPRING_TENDON_NAMES),
+        "controller": controller,
     }
