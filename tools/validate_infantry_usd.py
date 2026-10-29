@@ -78,6 +78,11 @@ def main() -> None:
     actuators = [
         prim.GetName() for prim in prims if prim.GetTypeName() == "MjcActuator"
     ]
+    base_visuals = [prim for prim in prims if prim.GetName() == "base_link_visual"]
+    if len(base_visuals) != 1:
+        raise ValueError(f"expected one base_link_visual, got {base_visuals}")
+    if base_visuals[0].HasAPI(UsdPhysics.CollisionAPI):
+        raise ValueError("base_link_visual unexpectedly has collision physics")
     require_names("revolute joints", joints, JOINT_NAMES)
     require_names("closed-loop equalities", equalities, EQUALITY_NAMES)
     require_names("spatial tendons", tendons, TENDON_NAMES)
@@ -120,6 +125,7 @@ def main() -> None:
         "closed_loop_equalities": sorted(equalities),
         "spatial_tendons": sorted(tendons),
         "actuators": sorted(actuators),
+        "base_link_visual": str(base_visuals[0].GetPath()),
         "rigid_body_mass_count": len(masses),
         "dependency_layers": len(layers),
         "dependency_assets": len(assets),

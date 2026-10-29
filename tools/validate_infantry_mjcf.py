@@ -52,7 +52,16 @@ def main() -> None:
 
     joint_names = object_names(robot, mujoco.mjtObj.mjOBJ_JOINT, robot.njnt)
     body_names = object_names(robot, mujoco.mjtObj.mjOBJ_BODY, robot.nbody)
-    geom_names = object_names(robot, mujoco.mjtObj.mjOBJ_GEOM, robot.ngeom)
+    geom_names = [
+        name
+        for name in object_names(robot, mujoco.mjtObj.mjOBJ_GEOM, robot.ngeom)
+        if name != "base_link_visual"
+    ]
+    visual_id = mujoco.mj_name2id(robot, mujoco.mjtObj.mjOBJ_GEOM, "base_link_visual")
+    if visual_id < 0:
+        raise ValueError("robot model has no separate base_link_visual geom")
+    if robot.geom_contype[visual_id] or robot.geom_conaffinity[visual_id]:
+        raise ValueError("base_link_visual must not participate in collisions")
     for name in joint_names:
         source_id = mujoco.mj_name2id(
             source, mujoco.mjtObj.mjOBJ_JOINT, args.source_prefix + name

@@ -111,7 +111,21 @@ def prepare(source: Path, destination: Path, report_path: Path) -> None:
         if element.tag == "mesh" and element.attrib.get("name") in referenced_meshes:
             output_asset.append(copy.deepcopy(element))
     output_worldbody = ET.SubElement(output, "worldbody")
-    output_worldbody.append(copy.deepcopy(robot))
+    robot_copy = copy.deepcopy(robot)
+    base_collision = robot_copy.find("./geom[@name='base_link_collision']")
+    if base_collision is None or base_collision.attrib.get("mesh") != "base_link":
+        raise ValueError("base_link_collision is not the expected chassis mesh")
+    base_visual = copy.deepcopy(base_collision)
+    base_visual.attrib.update(
+        {
+            "name": "base_link_visual",
+            "contype": "0",
+            "conaffinity": "0",
+            "mass": "0",
+        }
+    )
+    robot_copy.insert(list(robot_copy).index(base_collision), base_visual)
+    output_worldbody.append(robot_copy)
     output_equality = ET.SubElement(output, "equality")
     for name in EQUALITY_NAMES:
         output_equality.append(copy.deepcopy(equalities[name]))
@@ -150,6 +164,7 @@ def prepare(source: Path, destination: Path, report_path: Path) -> None:
             "actuator_count": len(list(actuator)),
             "mesh_count": len(referenced_meshes),
             "mesh_files": copied_assets,
+            "visual_only_geoms_added": ["base_link_visual"],
         },
         "removed_scene_content": {
             "top_level_bodies": [

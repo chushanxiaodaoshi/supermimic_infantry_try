@@ -41,8 +41,8 @@ tendon、八个 actuator、十四个旋转关节和十五个有质量的机器�
 
 包内共 8 个 USD layer，总大小约 9.27 MB：
 
-交付 ZIP 大小 6,563,872 bytes，SHA-256 为
-`4198b7308cef256f90da990e2b677978c98fd419b7dbe7ad0c7febcb41dfeac2`。
+交付 ZIP 大小 6,563,888 bytes，SHA-256 为
+`ec46e30822402ec43422ff2c2a0e6d2e354cfe8e22cb347f4ebcc4130681cba7`。
 
 ```text
 Fudan-2026RoboMaster-Balance/
@@ -69,7 +69,7 @@ MuJoCo 编译后的机器人模型：
 - body：16（含 world），其中 15 个机器人刚体具有有效质量；
 - joint：15（含 floating base），`nq=21`、`nv=20`；
 - 旋转关节：14；
-- mesh：35；geom：40；
+- mesh：35；geom：41（原 40 个物理/视觉 geom，加一个无质量、无碰撞的机身视觉实例）；
 - actuator：8。
 
 十四个旋转关节：
@@ -111,6 +111,11 @@ Right_gas_spring_tendon
 
 `tools/validate_infantry_mjcf.py` 按名称比较提取前后的 body 质量、惯量、质心，关节
 限位、阻尼、摩擦，以及 geom 摩擦和接触求解参数，结果完全一致。
+
+云端现象表明 Newton 运行视图可能过滤机身原本唯一的 `base_link_collision` 表示，
+因此转换准备阶段另外添加了复用同一 STL 的 `base_link_visual`。它设置为 `mass=0`、`contype=0`、
+`conaffinity=0`，不参与质量计算和碰撞；离线验证同时要求该 USD prim 存在且没有
+`CollisionAPI`。机身的原碰撞 geom 没有删除或修改。
 
 ## 资产与控制器分层
 
