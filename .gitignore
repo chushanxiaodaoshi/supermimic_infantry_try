@@ -5,6 +5,10 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+.ipynb_checkpoints/
+*.swp
+*.swo
+*.bak
 .venv/
 venv/
 *.egg-info/
@@ -20,6 +24,8 @@ IsaacLab/
 # third-party data (downloaded by tools/download_data.sh) and generated assets
 /data/
 infantry_usd_package.zip
+infantry_usd_package*.zip
+imgui.ini
 # training runs: checkpoints, logs
 logs/
 *.pt

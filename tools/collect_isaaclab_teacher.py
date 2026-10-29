@@ -133,7 +133,20 @@ class OnnxTeacher:
             raise RuntimeError(
                 f"ONNX provider {provider!r} unavailable; found {sorted(available)}"
             )
-        self.session = ort.InferenceSession(str(path), providers=[provider])
+        session_options = ort.SessionOptions()
+
+        session_options.intra_op_num_threads = 1
+        session_options.inter_op_num_threads = 1
+        session_options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+
+        # Keep replay/collection logs focused on simulator diagnostics.
+        session_options.log_severity_level = 3
+
+        self.session = ort.InferenceSession(
+            str(path),
+            sess_options=session_options,
+            providers=[provider],
+        )
         self.input_name = self.session.get_inputs()[0].name
         self.fixed_batch = self.session.get_inputs()[0].shape[0] == 1
 
