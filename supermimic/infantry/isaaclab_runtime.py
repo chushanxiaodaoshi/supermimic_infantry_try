@@ -1034,14 +1034,19 @@ class InfantryCollectionSim:
                 self.command_ranges[name]
             )
 
-            self.command[
-                env_ids,
-                column,
-            ].uniform_(
-                low,
-                high,
+            # Advanced indexing returns a copy, so calling uniform_() directly
+            # on self.command[env_ids, column] does not update self.command.
+            # Sample separately and assign it back explicitly.
+            sampled = torch.empty(
+                len(env_ids),
+                device=self.device,
+                dtype=self.command.dtype,
+            ).uniform_(
+                float(low),
+                float(high),
                 generator=self.rng,
             )
+            self.command[env_ids, column] = sampled
 
         self.last_action[
             env_ids
@@ -1213,7 +1218,7 @@ class InfantryCollectionSim:
             (~finite)
             | (
                 next_state[:, 2]
-                < 0.12
+                < 0.08
             )
         )
 

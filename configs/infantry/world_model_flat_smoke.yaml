@@ -1,0 +1,24 @@
+seed: 42
+device: cuda:0
+output: results/world_model_flat_smoke_05
+datasets:
+  - name: flat
+    path: data/teacher_isaaclab_flat_final_05
+    weight: 1.0
+model:
+  hidden: [256, 256]
+training:
+  iterations: 100
+  batch_size: 128
+  window: 8
+  learning_rate: 0.0002
+  normalizer_samples: 10000
+  max_grad_norm: 1.0
+  checkpoint_every: 50
+validation:
+  interval: 50
+  split: 1
+  horizons: [1, 4, 8, 16]
+  windows_per_source: 64
+  constraint_samples: 32
+  mjcf_path: ${MJLAB_ROOT}/mujoco390/mjcf/scene.xml

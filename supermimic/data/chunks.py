@@ -16,11 +16,14 @@ def episode_split(
     run_id: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """Map complete ``(run, episode)`` groups to train=0, validation=1, test=2."""
-    key = episode_id * 1_103_515_245 + seed
+    # Use a run-specific rotation of a 10-episode cycle.  Unlike the previous
+    # linear/XOR hash, this guarantees that every ten consecutive episodes in
+    # one run contain 8 train, 1 validation and 1 test episode.
+    offset = torch.full_like(episode_id, int(seed))
     if run_id is not None:
-        key = key ^ (run_id * 2_654_435_761)
-    bucket = (key & 0x7FFF_FFFF) % 100
-    return torch.where(bucket < 80, 0, torch.where(bucket < 90, 1, 2)).to(torch.uint8)
+        offset = offset ^ run_id ^ (run_id >> 32)
+    bucket = (episode_id + (offset & 0x7FFF_FFFF) % 10) % 10
+    return torch.where(bucket < 8, 0, torch.where(bucket == 8, 1, 2)).to(torch.uint8)
 
 
 class ChunkWriter:

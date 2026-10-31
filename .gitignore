@@ -36,5 +36,6 @@ logs/
 *.mp4
 *.npz
 results/analysis/
+results/world_model*/
 # third-party paper
 *.pdf

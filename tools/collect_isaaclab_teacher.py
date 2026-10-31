@@ -36,6 +36,7 @@ def _parser(with_launcher: bool = False) -> argparse.ArgumentParser:
     parser.add_argument("--onnx", type=Path)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--steps", type=int)
+    parser.add_argument("--seed", type=int)
     parser.add_argument("--validate-only", action="store_true")
     if with_launcher:
         from isaaclab.app import add_launcher_args
@@ -74,6 +75,11 @@ def load_config(args: argparse.Namespace) -> dict[str, Any]:
         if args.steps <= 0:
             raise ValueError("--steps must be positive")
         collection["steps"] = args.steps
+    seed_override = getattr(args, "seed", None)
+    if seed_override is not None:
+        if seed_override < 0:
+            raise ValueError("--seed must be non-negative")
+        collection["seed"] = seed_override
     for section, keys in (
         (asset, ("replay_source", "mjcf", "usd")),
         (teacher, ("onnx",)),

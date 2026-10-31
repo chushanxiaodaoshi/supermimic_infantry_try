@@ -36,12 +36,27 @@ def make_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output", type=Path)
     parser.add_argument("--validate-only", action="store_true")
     parser.add_argument("--steps", type=int, default=None)
+    parser.add_argument("--seed", type=int, default=None)
 
     parser.add_argument(
         "--height",
         type=float,
         default=0.20,
         help="Initial height command.",
+    )
+
+    parser.add_argument(
+        "--vx",
+        type=float,
+        default=None,
+        help="Neutral linear-velocity command; defaults to the configured range neutral.",
+    )
+
+    parser.add_argument(
+        "--yaw",
+        type=float,
+        default=None,
+        help="Neutral yaw-rate command; defaults to the configured range midpoint.",
     )
 
     parser.add_argument(
@@ -88,6 +103,8 @@ class KeypadControls:
         height_range: tuple[float, float],
         height: float,
         slow_scale: float,
+        vx: float | None = None,
+        yaw: float | None = None,
     ):
         from pynput import keyboard
 
@@ -105,6 +122,12 @@ class KeypadControls:
         self.vx_range = tuple(map(float, vx_range))
         self.yaw_range = tuple(map(float, yaw_range))
         self.height_range = tuple(map(float, height_range))
+
+        # Same-sign ranges describe a non-zero operating mode.  Their midpoint
+        # is the neutral interactive command (rotation [6, 10] -> yaw=8), so
+        # the robot keeps spinning when no translation key is held.
+        self.vx_default = self.command_default("vx", vx, self.vx_range)
+        self.yaw_default = self.command_default("yaw", yaw, self.yaw_range)
 
         self.height = min(
             max(float(height), self.height_range[0]),
@@ -212,12 +235,42 @@ class KeypadControls:
                 self.pressed.discard(token)
 
     @staticmethod
+    def neutral_value(value_range: tuple[float, float]) -> float:
+        low, high = value_range
+        if low <= 0.0 <= high:
+            return 0.0
+        return 0.5 * (low + high)
+
+    @classmethod
+    def command_default(
+        cls,
+        label: str,
+        value: float | None,
+        value_range: tuple[float, float],
+    ) -> float:
+        result = cls.neutral_value(value_range) if value is None else float(value)
+        low, high = value_range
+        if not low <= result <= high:
+            raise ValueError(
+                f"{label} command {result} is outside configured range [{low}, {high}]"
+            )
+        return result
+
+    @staticmethod
     def directional_value(
         direction: float,
         value_range: tuple[float, float],
         scale: float,
     ) -> float:
         low, high = value_range
+
+        if low == high:
+            return low
+
+        # A one-sided interval describes an operating band rather than signed
+        # direction.  Select its endpoints without scaling outside the band.
+        if low > 0.0 or high < 0.0:
+            return high if direction > 0.0 else low
 
         if direction > 0.0:
             return high * scale
@@ -281,13 +334,13 @@ class KeypadControls:
                 vx_direction,
                 self.vx_range,
                 speed_scale,
-            )
+            ) if vx_direction else self.vx_default
 
             yaw = self.directional_value(
                 yaw_direction,
                 self.yaw_range,
                 speed_scale,
-            )
+            ) if yaw_direction else self.yaw_default
 
         else:
             vx = 0.0
@@ -386,6 +439,8 @@ def main() -> None:
         height_range=height_range,
         height=args.height,
         slow_scale=args.slow_scale,
+        vx=args.vx,
+        yaw=args.yaw,
     )
 
     listener = controls.keyboard.Listener(
@@ -524,6 +579,11 @@ def main() -> None:
             print(
                 f"initial h    : "
                 f"{controls.height:.3f}"
+            )
+            print(
+                f"neutral cmd  : "
+                f"vx={controls.vx_default:.3f}, "
+                f"yaw={controls.yaw_default:.3f}"
             )
             print()
 

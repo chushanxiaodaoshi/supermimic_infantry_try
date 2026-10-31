@@ -1,0 +1,28 @@
+seed: 42
+device: cuda:0
+output: results/world_model_flat_jump_01
+datasets:
+  - name: flat
+    path: data/teacher_isaaclab_flat_final_05
+    weight: 1.0
+  - name: jump
+    path: data/teacher_isaaclab_jump
+    weight: 1.0
+model:
+  hidden: [512, 512]
+training:
+  # New mixed-data phase initialized from the flat checkpoint.
+  iterations: 50000
+  batch_size: 512
+  window: 16
+  learning_rate: 0.0001
+  normalizer_samples: 500000
+  max_grad_norm: 1.0
+  checkpoint_every: 5000
+validation:
+  interval: 1000
+  split: 1
+  horizons: [1, 4, 8, 16]
+  windows_per_source: 1024
+  constraint_samples: 128
+  mjcf_path: ${MJLAB_ROOT}/mujoco390/mjcf/scene.xml
