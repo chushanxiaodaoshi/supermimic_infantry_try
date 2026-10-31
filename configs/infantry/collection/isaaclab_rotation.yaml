@@ -1,25 +1,29 @@
 asset:
-  replay_source: ${MJLAB_ROOT}/mujoco390/run_policy.py
-  mjcf: ${MJLAB_ROOT}/mujoco390/mjcf/scene.xml
+  replay_source: ../../../mujoco390/run_policy.py
+  mjcf: ../../../mujoco390/mjcf/scene.xml
   usd: ../../../data/infantry_usd/Fudan-2026RoboMaster-Balance/Fudan-2026RoboMaster-Balance.usda
 teacher:
   name: independent_rotation
   skill: rotation
   # This is the independent spin policy selected by run_normal_policy.py at
   # mjlab commit 3cf0bd7.  It is separate from the default rough.onnx policy.
-  onnx: ${MJLAB_ROOT}/mujoco390/onnx/spin_move_testA++rewardfine1.onnx
+  onnx: ../../../mujoco390/onnx/spin_move_testA++rewardfine1.onnx
   id: 1
   task_id: 1
 commands:
-  lin_vel_x: [0.0, 0.0]
-  # Match the in-place spin branch in that replay: no direction key held.
-  ang_vel_z: [8.0, 8.0]
+  # The policy can translate while spinning.  Zero remains the neutral replay
+  # command, while collection samples forward and backward spin trajectories.
+  lin_vel_x: [-1.0, 1.0]
+  # Sample the supported spin-rate range independently for every episode.
+  ang_vel_z: [6.0, 10.0]
   height: [0.15, 0.15]
 collection:
   output: ../../../data/teacher_isaaclab_rotation
   num_envs: 1
   steps: 16000
-  max_episode_steps: 1000
+  # More resets give substantially better (vx, yaw) coverage while preserving
+  # 2.5-second contiguous trajectories for 16-step World Model windows.
+  max_episode_steps: 250
   chunk_steps: 128
   device: cuda:0
   onnx_provider: CPUExecutionProvider

@@ -33,15 +33,25 @@ checkpoint 保存模型（含归一化统计）、优化器、训练进度、Pyt
 batch、window 和 seed 契约，不重新拟合归一化，也不覆盖已有 checkpoint 或原始
 `resolved_config.yaml`。
 
+数据源发生变化时使用 `--init-from`，不能使用 `--resume`。该模式只加载已有
+World Model 权重，不加载旧优化器和训练步数；它在新混合数据上重新拟合输入/状态增量
+归一化统计，并对网络第一层和最后一层做解析等价变换。因此进入第一步增量训练前，
+模型表示的物理预测保持不变。新阶段必须写入新的空输出目录，并继续混入旧技能数据，
+避免只在新技能上微调造成遗忘。
+
 云端命令：
 
 ```bash
-export MJLAB_ROOT=/path/to/mjlab
 python tools/train_world_model.py --config configs/infantry/world_model_debug.yaml
 python tools/train_world_model.py --config configs/infantry/world_model_cloud.yaml
 python tools/train_world_model.py \
   --config configs/infantry/world_model_cloud.yaml \
   --resume results/world_model_shared/checkpoint_00005000.pt
+
+# 从 flat 模型迁移到 flat+jump；新阶段的 iteration 从 1 开始。
+python tools/train_world_model.py \
+  --config configs/infantry/world_model_flat_jump_cloud.yaml \
+  --init-from results/world_model_flat_05/checkpoint_00100000.pt
 ```
 
 训练 loss 下降不构成模型完成证明。是否扩大数据量应依据独立 validation 的各技能、

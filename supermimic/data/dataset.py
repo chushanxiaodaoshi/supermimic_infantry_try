@@ -52,14 +52,18 @@ class ChunkDataset:
             order = torch.argsort(self.data["timestamp"][indices])
             self.episodes[(int(run_id), int(episode_id))] = indices[order]
 
-    def _candidates(self, split: int, window: int) -> list[torch.Tensor]:
+    def _candidates(self, split: int | None, window: int) -> list[torch.Tensor]:
         return [
             indices
             for indices in self.episodes.values()
-            if len(indices) >= window and int(self.data["split"][indices[0]]) == split
+            if len(indices) >= window
+            and (
+                split is None
+                or int(self.data["split"][indices[0]]) == split
+            )
         ]
 
-    def has_windows(self, split: int, window: int) -> bool:
+    def has_windows(self, split: int | None, window: int) -> bool:
         return bool(self._candidates(split, window))
 
     def sample_windows(
@@ -67,7 +71,7 @@ class ChunkDataset:
         batch_size: int,
         window: int,
         *,
-        split: int = 0,
+        split: int | None = 0,
         device: str | torch.device = "cpu",
         fields: Iterable[str] | None = None,
         rng: random.Random | None = None,

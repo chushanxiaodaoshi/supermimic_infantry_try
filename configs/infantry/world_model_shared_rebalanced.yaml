@@ -1,0 +1,31 @@
+seed: 42
+device: cuda:0
+output: results/world_model_shared_02
+datasets:
+  - name: flat
+    path: data/teacher_isaaclab_flat_final_05
+    weight: 2.0
+  - name: rotation
+    path: data/teacher_isaaclab_rotation_final_01
+    weight: 1.0
+  - name: jump
+    path: data/teacher_isaaclab_jump
+    weight: 1.0
+model:
+  hidden: [512, 512]
+training:
+  # Remaining shared-training budget after the 30k 1:1:2 phase.
+  iterations: 70000
+  batch_size: 512
+  window: 16
+  learning_rate: 0.0001
+  normalizer_samples: 500000
+  max_grad_norm: 1.0
+  checkpoint_every: 5000
+validation:
+  interval: 1000
+  split: 1
+  horizons: [1, 4, 8, 16]
+  windows_per_source: 1024
+  constraint_samples: 128
+  mjcf_path: mujoco390/mjcf/scene.xml

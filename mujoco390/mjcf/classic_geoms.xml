@@ -1,0 +1,33 @@
+<mujocoinclude>
+  <geom name="classic_slope_up_00" pos="4 4 0" type="hfield" group="2" friction="0.8" rgba="0.35 0.65 0.9 1" hfield="classic_slope_up_hfield" />
+  <geom name="classic_slope_down_00" pos="8 4 -0.57" type="hfield" group="2" friction="0.8" rgba="0.25 0.45 0.75 1" hfield="classic_slope_down_hfield" />
+  <geom name="classic_waves_00" pos="12 4 -0.1775" type="hfield" group="2" friction="0.8" rgba="0.35 0.75 0.6 1" hfield="classic_waves_hfield" />
+  <geom name="classic_stairs_up_00" size="2 0.1 0.0735" pos="4 -2.1 -0.0735" type="box" group="2" friction="0.8" rgba="0.209704 0.352303 0.6375 1" />
+  <geom name="classic_stairs_up_01" size="2 0.1 0.0735" pos="4 -5.9 -0.0735" type="box" group="2" friction="0.8" rgba="0.209704 0.352303 0.6375 1" />
+  <geom name="classic_stairs_up_02" size="0.1 1.8 0.0735" pos="2.1 -4 -0.0735" type="box" group="2" friction="0.8" rgba="0.209704 0.352303 0.6375 1" />
+  <geom name="classic_stairs_up_03" size="0.1 1.8 0.0735" pos="5.9 -4 -0.0735" type="box" group="2" friction="0.8" rgba="0.209704 0.352303 0.6375 1" />
+  <geom name="classic_stairs_up_04" size="1.8 0.3 0.147" pos="4 -2.5 0" type="box" group="2" friction="0.8" rgba="0.246711 0.414474 0.75 1" />
+  <geom name="classic_stairs_up_05" size="1.8 0.3 0.147" pos="4 -5.5 0" type="box" group="2" friction="0.8" rgba="0.246711 0.414474 0.75 1" />
+  <geom name="classic_stairs_up_06" size="0.3 1.2 0.147" pos="5.5 -4 0" type="box" group="2" friction="0.8" rgba="0.246711 0.414474 0.75 1" />
+  <geom name="classic_stairs_up_07" size="0.3 1.2 0.147" pos="2.5 -4 0" type="box" group="2" friction="0.8" rgba="0.246711 0.414474 0.75 1" />
+  <geom name="classic_stairs_up_08" size="1.2 0.3 0.2205" pos="4 -3.1 0.0735" type="box" group="2" friction="0.8" rgba="0.131579 0.421053 1 1" />
+  <geom name="classic_stairs_up_09" size="1.2 0.3 0.2205" pos="4 -4.9 0.0735" type="box" group="2" friction="0.8" rgba="0.131579 0.421053 1 1" />
+  <geom name="classic_stairs_up_10" size="0.3 0.6 0.2205" pos="4.9 -4 0.0735" type="box" group="2" friction="0.8" rgba="0.131579 0.421053 1 1" />
+  <geom name="classic_stairs_up_11" size="0.3 0.6 0.2205" pos="3.1 -4 0.0735" type="box" group="2" friction="0.8" rgba="0.131579 0.421053 1 1" />
+  <geom name="classic_stairs_up_12" size="0.6 0.6 0.294" pos="4 -4 0.147" type="box" group="2" friction="0.8" rgba="0.131579 0.421053 1 1" />
+  <geom name="classic_stairs_down_00" size="2 0.1 0.0735" pos="8 -2.1 -0.0735" type="box" group="2" friction="0.8" rgba="0.6375 0.27625 0.27625 1" />
+  <geom name="classic_stairs_down_01" size="2 0.1 0.0735" pos="8 -5.9 -0.0735" type="box" group="2" friction="0.8" rgba="0.6375 0.27625 0.27625 1" />
+  <geom name="classic_stairs_down_02" size="0.1 1.8 0.0735" pos="6.1 -4 -0.0735" type="box" group="2" friction="0.8" rgba="0.6375 0.27625 0.27625 1" />
+  <geom name="classic_stairs_down_03" size="0.1 1.8 0.0735" pos="9.9 -4 -0.0735" type="box" group="2" friction="0.8" rgba="0.6375 0.27625 0.27625 1" />
+  <geom name="classic_stairs_down_04" size="1.8 0.3 0.147" pos="8 -2.5 -0.294" type="box" group="2" friction="0.8" rgba="0.75 0.325 0.325 1" />
+  <geom name="classic_stairs_down_05" size="1.8 0.3 0.147" pos="8 -5.5 -0.294" type="box" group="2" friction="0.8" rgba="0.75 0.325 0.325 1" />
+  <geom name="classic_stairs_down_06" size="0.3 1.2 0.147" pos="9.5 -4 -0.294" type="box" group="2" friction="0.8" rgba="0.75 0.325 0.325 1" />
+  <geom name="classic_stairs_down_07" size="0.3 1.2 0.147" pos="6.5 -4 -0.294" type="box" group="2" friction="0.8" rgba="0.75 0.325 0.325 1" />
+  <geom name="classic_stairs_down_08" size="1.2 0.3 0.0735" pos="8 -3.1 -0.3675" type="box" group="2" friction="0.8" rgba="1 0.266667 0.266667 1" />
+  <geom name="classic_stairs_down_09" size="1.2 0.3 0.0735" pos="8 -4.9 -0.3675" type="box" group="2" friction="0.8" rgba="1 0.266667 0.266667 1" />
+  <geom name="classic_stairs_down_10" size="0.3 0.6 0.0735" pos="8.9 -4 -0.3675" type="box" group="2" friction="0.8" rgba="1 0.266667 0.266667 1" />
+  <geom name="classic_stairs_down_11" size="0.3 0.6 0.0735" pos="7.1 -4 -0.3675" type="box" group="2" friction="0.8" rgba="1 0.266667 0.266667 1" />
+  <geom name="classic_stairs_down_12" size="0.6 0.6 0.0735" pos="8 -4 -0.5145" type="box" group="2" friction="0.8" rgba="1 0.266667 0.266667 1" />
+  <geom name="classic_discrete_00" pos="12 -4 -0.21" type="hfield" group="2" friction="0.8" rgba="0.7 0.5 0.3 1" hfield="classic_discrete_hfield" />
+  <geom name="classic_rough_00" pos="0 4 0" type="hfield" group="2" friction="0.8" rgba="0.6 0.65 0.4 1" hfield="classic_rough_hfield" />
+</mujocoinclude>

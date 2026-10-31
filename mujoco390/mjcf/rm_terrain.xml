@@ -1,0 +1,46 @@
+<mujocoinclude>
+  <!-- Custom RM-style test obstacles, not an official field specification.
+       All sizes are half-extents in metres. Drive in the +X direction.
+       This file is included inside the existing terrain body. -->
+
+  <!-- Centre lane: 20 cm base, another 10 cm upper stage, 5 cm raised lip.
+       x=3..4.5: z=0.20; x=4.5..4.62: z=0.35;
+       x=4.62..6: z=0.30; x=6..7: z=0.20, then ground.
+       Driving back along -X also tests the two-stage descent. -->
+  <geom name="rm_double_step_base" type="box" group="2"
+        pos="5 0 0.10" size="2 1.2 0.10"
+        contype="1" conaffinity="1" friction="0.8 0.005 0.0001"
+        rgba="0.85 0.36 0.18 1" />
+  <geom name="rm_double_step_upper" type="box" group="2"
+        pos="5.25 0 0.25" size="0.75 1.2 0.05"
+        contype="1" conaffinity="1" friction="0.8 0.005 0.0001"
+        rgba="0.95 0.62 0.15 1" />
+  <geom name="rm_double_step_entry_lip" type="box" group="2"
+        pos="4.56 0 0.325" size="0.06 1.2 0.025"
+        contype="1" conaffinity="1" friction="0.8 0.005 0.0001"
+        rgba="1 0.85 0.12 1" />
+
+  <!-- Side lane y=+6: two 20 cm platforms with a 30 cm ground-level gap. -->
+  <geom name="rm_gap_approach" type="box" group="2"
+        pos="3.75 6 0.10" size="0.75 1.2 0.10"
+        contype="1" conaffinity="1" friction="0.8 0.005 0.0001"
+        rgba="0.15 0.65 0.8 1" />
+  <geom name="rm_gap_landing" type="box" group="2"
+        pos="5.55 6 0.10" size="0.75 1.2 0.10"
+        contype="1" conaffinity="1" friction="0.8 0.005 0.0001"
+        rgba="0.12 0.48 0.72 1" />
+
+  <!-- Side lane y=-6: 80 cm wide bridge, 20 cm high, 10 cm end steps. -->
+  <geom name="rm_narrow_bridge_entry" type="box" group="2"
+        pos="2.5 -6 0.05" size="0.5 0.4 0.05"
+        contype="1" conaffinity="1" friction="0.8 0.005 0.0001"
+        rgba="0.32 0.72 0.38 1" />
+  <geom name="rm_narrow_bridge" type="box" group="2"
+        pos="5 -6 0.10" size="2 0.4 0.10"
+        contype="1" conaffinity="1" friction="0.8 0.005 0.0001"
+        rgba="0.22 0.55 0.3 1" />
+  <geom name="rm_narrow_bridge_exit" type="box" group="2"
+        pos="7.5 -6 0.05" size="0.5 0.4 0.05"
+        contype="1" conaffinity="1" friction="0.8 0.005 0.0001"
+        rgba="0.32 0.72 0.38 1" />
+</mujocoinclude>

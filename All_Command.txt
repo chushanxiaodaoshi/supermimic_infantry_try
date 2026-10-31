@@ -1,0 +1,215 @@
+# SuperMimic 常用命令
+#
+# 使用方法：复制需要的命令到终端执行。以 # 开头的行都是中文说明，
+# 不会被 shell 当作命令执行。除 MuJoCo reference 小节外，默认工作目录为：
+# /workspace/supermimic
+
+
+# ============================================================
+# 0. 进入 SuperMimic 仓库
+# ============================================================
+# 用途：确保后续命令中的相对路径都从正确位置解析。
+
+cd /workspace/supermimic
+
+
+# ============================================================
+# 1. Isaac Lab 3 + Newton/MJWarp 交互式 ONNX replay
+# ============================================================
+# 用途：在 Newton GL 窗口中运行 rough.onnx，观察机器人站立、平衡和运动。
+# 该命令不会写 Teacher 数据，也不会在机器人跌倒后自动 reset。
+# 没有 --steps，因此会持续运行；使用 Ctrl+C 退出。
+#
+# 键盘控制：
+#   小键盘 8 / W / 上方向键：前进
+#   小键盘 5 / S / 下方向键：后退
+#   小键盘 4 / A / 左方向键：左转
+#   小键盘 6 / D / 右方向键：右转
+#   小键盘 7 / R：增大 height command
+#   小键盘 9 / F：减小 height command
+#   Shift：使用全速 command
+#   Space：启用或停用 vx/yaw command
+# NumLock 开启或关闭均可，vx/yaw 控制在启动时默认启用。
+
+/opt/isaaclab-venv/bin/python tools/replay_isaaclab_teacher.py \
+  --config configs/infantry/collection/isaaclab_flat.yaml \
+  --replay /workspace/supermimic/mujoco390/run_policy.py \
+  --mjcf /workspace/supermimic/mujoco390/mjcf/scene.xml \
+  --usd /workspace/supermimic/data/infantry_usd/Fudan-2026RoboMaster-Balance/Fudan-2026RoboMaster-Balance.usda \
+  --onnx /workspace/supermimic/mujoco390/onnx/rough.onnx \
+  --visualizer newton_gl
+
+
+# ============================================================
+# 2. Replay 前 30 个 control step 逐步诊断
+# ============================================================
+# 用途：排查启动瞬间的 observation、ONNX action 和控制映射差异。
+# 每个 control step 都会打印 command、base pose、observation 范围、
+# ONNX action、8 维 applied control、实际关节 q 和 qd，然后自动退出。
+
+/opt/isaaclab-venv/bin/python tools/replay_isaaclab_teacher.py \
+  --config configs/infantry/collection/isaaclab_flat.yaml \
+  --replay /workspace/supermimic/mujoco390/run_policy.py \
+  --mjcf /workspace/supermimic/mujoco390/mjcf/scene.xml \
+  --usd /workspace/supermimic/data/infantry_usd/Fudan-2026RoboMaster-Balance/Fudan-2026RoboMaster-Balance.usda \
+  --onnx /workspace/supermimic/mujoco390/onnx/rough.onnx \
+  --visualizer newton_gl \
+  --steps 30
+
+
+# ============================================================
+# 3. Replay 长时稳定性验证
+# ============================================================
+# 用途：运行 1000 个 control step，即约 10 秒仿真时间，检查机器人是否
+# 长时间保持有限状态并继续平衡。实际墙钟时间会比 10 秒长。
+# 状态按固定时间间隔打印，运行到 1000 步后自动退出。
+
+/opt/isaaclab-venv/bin/python tools/replay_isaaclab_teacher.py \
+  --config configs/infantry/collection/isaaclab_flat.yaml \
+  --replay /workspace/supermimic/mujoco390/run_policy.py \
+  --mjcf /workspace/supermimic/mujoco390/mjcf/scene.xml \
+  --usd /workspace/supermimic/data/infantry_usd/Fudan-2026RoboMaster-Balance/Fudan-2026RoboMaster-Balance.usda \
+  --onnx /workspace/supermimic/mujoco390/onnx/rough.onnx \
+  --visualizer newton_gl \
+  --steps 1000
+
+
+# ============================================================
+# 4. MuJoCo 正确参考 replay
+# ============================================================
+# 用途：运行已知正确的 MuJoCo 实现，作为 Isaac/Newton 行为对照。
+# run_policy.py 会自动使用 scene.xml 对应的 initial_state.npz。
+# 运行结束后第二条 cd 命令返回 SuperMimic 仓库。
+
+cd /workspace/supermimic/mujoco390
+/opt/isaaclab-venv/bin/python run_policy.py \
+  --onnx /workspace/supermimic/mujoco390/onnx/rough.onnx \
+  --xml /workspace/supermimic/mujoco390/mjcf/scene.xml
+cd /workspace/supermimic
+
+
+# ============================================================
+# 5. Teacher contract 和配置检查
+# ============================================================
+# 用途：核对 ONNX、MJCF、关节顺序、动作缩放、控制参数和 observation
+# contract。--validate-only 不启动 Isaac Lab 仿真，也不写数据集。
+
+/opt/isaaclab-venv/bin/python tools/collect_isaaclab_teacher.py \
+  --config configs/infantry/collection/isaaclab_flat.yaml \
+  --validate-only
+
+
+# ============================================================
+# 6. 与 Infantry contract 相关的快速单元测试
+# ============================================================
+# 用途：检查 6 维 policy action 到 8 维 control 的映射、contract 维度、
+# replay 常量提取、状态编码和 World Model 的基础梯度行为。
+
+/opt/isaaclab-venv/bin/python -m pytest -q \
+  tests/test_infantry_contract.py \
+  tests/test_generic_world_model.py
+
+
+# ============================================================
+# 7. 运行仓库完整测试
+# ============================================================
+# 用途：在准备提交或开始下一阶段前运行全部单元测试。
+# 完整测试通常比上面的 Infantry 快速测试耗时更长。
+
+/opt/isaaclab-venv/bin/python -m pytest -q tests
+
+
+# ============================================================
+# 8. Python 语法/导入前编译检查
+# ============================================================
+# 用途：快速发现 runtime 或 replay 工具中的语法和缩进错误；
+# 该命令不会启动仿真。
+
+/opt/isaaclab-venv/bin/python -m py_compile \
+  supermimic/infantry/isaaclab_runtime.py \
+  tools/replay_isaaclab_teacher.py
+
+
+# ============================================================
+# 9. Teacher 数据采集模板（flat / jump 已验证）
+# ============================================================
+# 用途：在 Isaac Lab/Newton 中采集真实仿真 Teacher transition。
+# 必须先把下面的目录名改成此次运行专用的新目录。
+# 采集器要求输出目录不存在或为空，禁止覆盖以前的数据。
+# 第一条命令只设置本次输出目录，第二条命令才开始采集。
+
+export SUPERMIMIC_NEW_DATASET_DIR=/workspace/supermimic/data/teacher_isaaclab_flat_REPLACE_01
+/opt/isaaclab-venv/bin/python tools/collect_isaaclab_teacher.py \
+  --config configs/infantry/collection/isaaclab_flat.yaml \
+  --output "$SUPERMIMIC_NEW_DATASET_DIR"
+
+# 用途：采集 jump Teacher。默认目录必须不存在；当前正式数据已经采集完成，
+# 只有在需要新的独立运行时才修改 --output 后重新执行。
+
+/opt/isaaclab-venv/bin/python tools/collect_isaaclab_teacher.py \
+  --config configs/infantry/collection/isaaclab_jump.yaml \
+  --output /workspace/supermimic/data/teacher_isaaclab_jump_REPLACE_01
+
+
+# ============================================================
+# 10. Rotation Teacher 上传、检查与交互重放
+# ============================================================
+# 用途：rotation 配置固定从下面的路径读取 ONNX。上传完成后先做 contract
+# 检查，再打开 Newton GL 重放。未按移动键时原地自转；按 W/S 或小键盘
+# 8/5 时，自转同时前后平移。正式采集前必须先目视验证行为。
+#
+# ONNX 目标路径：
+# /workspace/supermimic/mujoco390/onnx/spin_move_testA++rewardfine1.onnx
+
+/opt/isaaclab-venv/bin/python tools/collect_isaaclab_teacher.py \
+  --config configs/infantry/collection/isaaclab_rotation.yaml \
+  --validate-only
+
+/opt/isaaclab-venv/bin/python tools/replay_isaaclab_teacher.py \
+  --config configs/infantry/collection/isaaclab_rotation.yaml \
+  --visualizer newton_gl
+
+
+# ============================================================
+# 11. World Model 训练
+# ============================================================
+# 用途：使用 cloud 配置训练 Infantry World Model。
+# 运行前先确认配置中的数据集路径指向已完成且经过检查的数据集；
+# 冒烟测试或 loss 下降不能单独证明 policy 已成功。
+
+/opt/isaaclab-venv/bin/python tools/train_world_model.py \
+  --config configs/infantry/world_model_cloud.yaml \
+  --init-from results/world_model_flat_05/checkpoint_00100000.pt
+
+# 用途：从已训练的 flat checkpoint 初始化 flat+jump 共享世界模型。
+# --init-from 会重新统计混合数据归一化、等价变换网络并重置优化器；
+# 它不是断点恢复，输出写入配置中的新目录 results/world_model_flat_jump_01。
+
+/opt/isaaclab-venv/bin/python tools/train_world_model.py \
+  --config configs/infantry/world_model_flat_jump_cloud.yaml \
+  --init-from results/world_model_flat_05/checkpoint_00100000.pt
+
+# 用途：当 jump 已学好但 flat 长时误差回升时，从三技能 30k checkpoint
+# 开始 flat:rotation:jump=2:1:1 的重平衡阶段。
+
+/opt/isaaclab-venv/bin/python tools/train_world_model.py \
+  --config configs/infantry/world_model_shared_rebalanced.yaml \
+  --init-from results/world_model_shared_01/checkpoint_00030000.pt
+
+
+# ============================================================
+# 12. 查看 GPU 状态
+# ============================================================
+# 用途：检查 GPU 型号、显存占用、驱动状态和是否有遗留仿真进程。
+
+nvidia-smi
+
+
+# ============================================================
+# 13. Git 工作区检查
+# ============================================================
+# 用途：第一条列出修改和未跟踪文件；第二条检查 diff 中的空白错误。
+# 这两条命令不会修改、暂存或提交任何文件。
+
+git status --short
+git diff --check

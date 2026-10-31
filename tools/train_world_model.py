@@ -32,18 +32,29 @@ COMPONENTS = {
     "joint_velocity": slice(12 + INFANTRY_SPEC.num_joints, None),
 }
 PHASE_LABELS = {
-    0: "contact",
-    1: "takeoff_contact",
-    2: "airborne_ascent",
-    3: "airborne_descent",
-    4: "landing_contact",
+    0: "contact_or_steady",
+    1: "ascending",
+    2: "descending",
 }
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path, required=True)
-    parser.add_argument("--resume", type=Path)
+    checkpoint_mode = parser.add_mutually_exclusive_group()
+    checkpoint_mode.add_argument(
+        "--resume",
+        type=Path,
+        help="Resume the same run with an unchanged dataset/config contract.",
+    )
+    checkpoint_mode.add_argument(
+        "--init-from",
+        type=Path,
+        help=(
+            "Warm-start a new run from model weights while refitting mixed-dataset "
+            "normalizers and resetting the optimizer."
+        ),
+    )
     parser.add_argument("--device")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--iterations", type=int)
@@ -136,6 +147,112 @@ def fit_normalizers(
         )
         model.out_norm.update(model.transition_targets(state, next_state))
         remaining -= count
+
+
+@torch.no_grad()
+def rebase_network_for_normalizers(
+    model: WorldModel,
+    *,
+    old_input_mean: torch.Tensor,
+    old_input_std: torch.Tensor,
+    old_output_mean: torch.Tensor,
+    old_output_std: torch.Tensor,
+) -> None:
+    """Preserve physical predictions after replacing input/output statistics.
+
+    ``model`` already contains the newly fitted normalizers.  The first and
+    last linear layers are transformed so the represented physical transition
+    function is unchanged before warm-start training begins.
+    """
+    first = model.net[0]
+    last = model.net[-1]
+    if not isinstance(first, nn.Linear) or not isinstance(last, nn.Linear):
+        raise TypeError("WorldModel must start and end with linear layers")
+
+    new_input_mean = model.in_norm.mean
+    new_input_std = model.in_norm.std()
+    new_output_mean = model.out_norm.mean
+    new_output_std = model.out_norm.std()
+    statistics = (
+        old_input_mean,
+        old_input_std,
+        old_output_mean,
+        old_output_std,
+        new_input_mean,
+        new_input_std,
+        new_output_mean,
+        new_output_std,
+    )
+    if any(not torch.isfinite(value).all() for value in statistics):
+        raise FloatingPointError("normalizer statistics must be finite")
+    if (
+        (old_input_std <= 0).any()
+        or (old_output_std <= 0).any()
+        or (new_input_std <= 0).any()
+        or (new_output_std <= 0).any()
+    ):
+        raise ValueError("normalizer standard deviations must be positive")
+
+    old_first_weight = first.weight.detach().clone()
+    input_scale = new_input_std / old_input_std
+    input_shift = (new_input_mean - old_input_mean) / old_input_std
+    first.weight.mul_(input_scale.unsqueeze(0))
+    first.bias.add_(old_first_weight @ input_shift)
+
+    old_last_bias = last.bias.detach().clone()
+    output_scale = old_output_std / new_output_std
+    last.weight.mul_(output_scale.unsqueeze(1))
+    last.bias.copy_(
+        old_last_bias * output_scale
+        + (old_output_mean - new_output_mean) / new_output_std
+    )
+
+
+def initialize_from_checkpoint(
+    path: Path,
+    model: WorldModel,
+    dataset: MixtureDataset,
+    *,
+    samples: int,
+    batch_size: int,
+    device: torch.device,
+) -> dict[str, Any]:
+    """Warm-start weights while fitting statistics for the new data mixture."""
+    payload = torch.load(path, map_location=device, weights_only=False)
+    source_spec = payload.get("robot_spec")
+    if source_spec is not None and source_spec != asdict(INFANTRY_SPEC):
+        raise ValueError("initialization checkpoint uses an incompatible robot spec")
+    model.load_state_dict(payload["world_model"], strict=True)
+
+    old_input_mean = model.in_norm.mean.detach().clone()
+    old_input_std = model.in_norm.std().detach().clone()
+    old_output_mean = model.out_norm.mean.detach().clone()
+    old_output_std = model.out_norm.std().detach().clone()
+
+    for normalizer in (model.in_norm, model.out_norm):
+        normalizer.mean.zero_()
+        normalizer.var.fill_(1.0)
+        normalizer.count.zero_()
+    fit_normalizers(
+        model,
+        dataset,
+        samples=samples,
+        batch_size=batch_size,
+        device=device,
+    )
+    rebase_network_for_normalizers(
+        model,
+        old_input_mean=old_input_mean,
+        old_input_std=old_input_std,
+        old_output_mean=old_output_mean,
+        old_output_std=old_output_std,
+    )
+    return {
+        "checkpoint": str(path),
+        "source_iteration": int(payload.get("iteration", 0)),
+        "optimizer": "reset",
+        "normalizers": "refit_with_function_preserving_rebase",
+    }
 
 
 def rollout_error(
@@ -355,7 +472,9 @@ def restore_checkpoint(
     torch.set_rng_state(payload["torch_rng_state"].cpu())
     cuda_state = payload.get("cuda_rng_state_all")
     if cuda_state is not None and torch.cuda.is_available():
-        torch.cuda.set_rng_state_all(cuda_state)
+        # ``map_location=device`` also moves the serialized RNG tensors onto
+        # CUDA, while PyTorch's RNG restore API requires CPU ByteTensors.
+        torch.cuda.set_rng_state_all([state.cpu() for state in cuda_state])
     return int(payload["iteration"]), float(payload.get("elapsed_seconds", 0.0))
 
 
@@ -371,6 +490,10 @@ def main() -> None:
         raise RuntimeError("CUDA was requested but is not available")
     output = _resolve(cfg["output"])
     resume = args.resume.expanduser().resolve() if args.resume else None
+    init_from = args.init_from.expanduser().resolve() if args.init_from else None
+    for label, checkpoint in (("resume", resume), ("init-from", init_from)):
+        if checkpoint is not None and not checkpoint.is_file():
+            raise FileNotFoundError(f"{label} checkpoint: {checkpoint}")
     if output.exists() and any(output.iterdir()) and resume is None:
         raise FileExistsError(f"output must be empty for a new run: {output}")
     output.mkdir(parents=True, exist_ok=True)
@@ -379,6 +502,11 @@ def main() -> None:
     resolved_config["datasets"] = [
         {**item, "path": str(_resolve(item["path"]))} for item in cfg["datasets"]
     ]
+    if init_from is not None:
+        resolved_config["initialization"] = {
+            "mode": "warm_start",
+            "checkpoint": str(init_from),
+        }
     resolved_path = output / "resolved_config.yaml"
     if resume is None:
         resolved_path.write_text(
@@ -416,6 +544,20 @@ def main() -> None:
         start_iteration, elapsed_before = restore_checkpoint(
             resume, model, optimizer, dataset, resolved_config, device
         )
+    elif init_from is not None:
+        initialization = initialize_from_checkpoint(
+            init_from,
+            model,
+            dataset,
+            samples=int(training.get("normalizer_samples", 100_000)),
+            batch_size=int(training["batch_size"]),
+            device=device,
+        )
+        resolved_config["initialization"].update(initialization)
+        resolved_path.write_text(
+            yaml.safe_dump(resolved_config, sort_keys=False), encoding="utf-8"
+        )
+        print(json.dumps({"status": "initialized", **initialization}), flush=True)
     else:
         fit_normalizers(
             model,

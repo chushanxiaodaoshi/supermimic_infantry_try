@@ -1,12 +1,12 @@
 seed: 42
 device: cuda:0
-output: results/world_model_shared
+output: results/world_model_shared_01
 datasets:
   - name: flat
-    path: data/teacher_isaaclab_flat
+    path: data/teacher_isaaclab_flat_final_05
     weight: 1.0
   - name: rotation
-    path: data/teacher_isaaclab_rotation
+    path: data/teacher_isaaclab_rotation_final_01
     weight: 1.0
   - name: jump
     path: data/teacher_isaaclab_jump
@@ -17,7 +17,8 @@ training:
   iterations: 100000
   batch_size: 512
   window: 16
-  learning_rate: 0.0002
+  # Warm-start phase from the converged flat checkpoint.
+  learning_rate: 0.0001
   normalizer_samples: 500000
   max_grad_norm: 1.0
   checkpoint_every: 5000
@@ -27,4 +28,4 @@ validation:
   horizons: [1, 4, 8, 16]
   windows_per_source: 1024
   constraint_samples: 128
-  mjcf_path: ${MJLAB_ROOT}/mujoco390/mjcf/scene.xml
+  mjcf_path: mujoco390/mjcf/scene.xml

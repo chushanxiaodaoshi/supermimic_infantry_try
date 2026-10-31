@@ -1,8 +1,8 @@
 # Isaac Lab 3 多 Teacher 采集适配
 
-本阶段的主采集入口是 `tools/collect_isaaclab_teacher.py`。mjlab 的
-`mujoco390/run_policy.py` 仍是 ONNX 观测与控制契约的唯一来源；采集器通过 AST
-读取动作关节顺序、缩放和力矩限制，不导入重放程序，也不在本仓库复制一套控制器。
+本阶段的主采集入口是 `tools/collect_isaaclab_teacher.py`。仓库内的
+`mujoco390/run_policy.py` 是 ONNX 观测与控制契约的唯一来源；采集器通过 AST
+读取动作关节顺序、缩放和力矩限制，不导入重放程序，也不另写一套控制器。
 
 ## 已核对的 Teacher
 
@@ -19,10 +19,9 @@ Teacher 身份以重放程序实际加载关系为准，而不是从文件名猜
 | jump | 重放目录中的 `jump.onnx`（元数据指向 jump-v8） | `94624b748f7e28b14b890b2ecd0b243050109c68b3d1c09cda4ab7a112e5109a` |
 
 较新的 flat 导出 `2026-09-10_17-25-15.onnx` 是 162 维输入，不能套用当前
-150 维重放历史，采集器会拒绝它。旋转权重存在于 mjlab 历史提交 `3cf0bd7`，但不在
-当前 `data_play_try` checkout；云端采集前应切到/导出该提交中的准确文件，或用
-`--onnx` 指向同一权重，不能回退成 `rough.onnx`。采集 manifest 会保留实际路径、
-哈希和原始 ONNX 元数据，避免掩盖来源。
+150 维重放历史，采集器会拒绝它。当前三份已核对的权重均随 `mujoco390/onnx/`
+纳入仓库；不能用 `rough.onnx` 替代旋转权重。采集 manifest 会保留实际路径、哈希和
+原始 ONNX 元数据，避免掩盖来源。
 
 ## Isaac Lab 3 适配边界
 
@@ -44,7 +43,9 @@ Teacher 身份以重放程序实际加载关系为准，而不是从文件名猜
 
 ## 云端准备与命令
 
-先导入原 MJCF/STL，再离线转换 USD：
+Teacher replay、契约检查和 World Model 的 MJCF 约束验证已不需要 `MJLAB_ROOT`。
+只有需要从头重建被忽略的 Isaac USD 资产时，才从外部 mjlab checkout 导入原始资产，
+再离线转换 USD：
 
 ```bash
 python tools/import_infantry_asset.py "$MJLAB_ROOT/src/mjlab/asset_zoo/robots/infantry"

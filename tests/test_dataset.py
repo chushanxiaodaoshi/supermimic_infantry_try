@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 import torch
 
-from supermimic.data.chunks import ChunkWriter
+from supermimic.data.chunks import ChunkWriter, episode_split
 from supermimic.data.dataset import ChunkDataset, DatasetSource, MixtureDataset
 from supermimic.infantry.spec import INFANTRY_SPEC
 
@@ -116,6 +116,13 @@ def test_same_episode_id_in_different_runs_never_forms_one_window(
     dataset = ChunkDataset(tmp_path)
     assert len(dataset.episodes) == 2
     assert not any(dataset.has_windows(split, 3) for split in range(3))
+
+
+def test_episode_split_has_all_partitions_per_ten_episodes() -> None:
+    episode_ids = torch.arange(20)
+    run_ids = torch.full_like(episode_ids, 123456789)
+    split = episode_split(episode_ids, seed=2026, run_id=run_ids)
+    assert torch.bincount(split.long(), minlength=3).tolist() == [16, 2, 2]
 
 
 def test_weighted_mixture_and_rng_state_are_reproducible(tmp_path: Path) -> None:

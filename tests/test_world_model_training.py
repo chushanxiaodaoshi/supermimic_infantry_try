@@ -6,6 +6,7 @@ from pathlib import Path
 import torch
 import yaml
 
+from supermimic.core.networks import WorldModel
 from supermimic.data.chunks import ChunkWriter, episode_split
 from supermimic.infantry.spec import INFANTRY_SPEC
 from tools import train_world_model
@@ -43,6 +44,49 @@ def _dataset(path: Path, offset: float) -> None:
                 }
             )
     writer.close()
+
+
+def test_normalizer_rebase_preserves_physical_predictions() -> None:
+    torch.manual_seed(9)
+    model = WorldModel(INFANTRY_SPEC, hidden=(16,), zero_init_output=False)
+    with torch.no_grad():
+        for parameter in model.parameters():
+            parameter.uniform_(-0.1, 0.1)
+        model.in_norm.mean.copy_(torch.randn(model.in_dim))
+        model.in_norm.var.copy_(torch.rand(model.in_dim) + 0.2)
+        model.in_norm.count.fill_(100)
+        model.out_norm.mean.copy_(torch.randn(INFANTRY_SPEC.delta_dim))
+        model.out_norm.var.copy_(torch.rand(INFANTRY_SPEC.delta_dim) + 0.2)
+        model.out_norm.count.fill_(100)
+
+    values = torch.randn(7, model.in_dim)
+
+    def physical_prediction() -> torch.Tensor:
+        normalized = model.net(model.in_norm(values))
+        return normalized * model.out_norm.std() + model.out_norm.mean
+
+    before = physical_prediction().detach().clone()
+    old_input_mean = model.in_norm.mean.clone()
+    old_input_std = model.in_norm.std().clone()
+    old_output_mean = model.out_norm.mean.clone()
+    old_output_std = model.out_norm.std().clone()
+
+    with torch.no_grad():
+        model.in_norm.mean.copy_(torch.randn(model.in_dim) * 2.0)
+        model.in_norm.var.copy_(torch.rand(model.in_dim) * 2.0 + 0.1)
+        model.in_norm.count.fill_(200)
+        model.out_norm.mean.copy_(torch.randn(INFANTRY_SPEC.delta_dim) * 2.0)
+        model.out_norm.var.copy_(torch.rand(INFANTRY_SPEC.delta_dim) * 2.0 + 0.1)
+        model.out_norm.count.fill_(200)
+
+    train_world_model.rebase_network_for_normalizers(
+        model,
+        old_input_mean=old_input_mean,
+        old_input_std=old_input_std,
+        old_output_mean=old_output_mean,
+        old_output_std=old_output_std,
+    )
+    torch.testing.assert_close(physical_prediction(), before, rtol=2e-5, atol=2e-5)
 
 
 def test_config_training_and_resume_restore_full_state(tmp_path, monkeypatch) -> None:
@@ -109,3 +153,35 @@ def test_config_training_and_resume_restore_full_state(tmp_path, monkeypatch) ->
     assert resumed["iteration"] == 3
     assert resumed["optimizer"]["state"]
     assert (output / "resolved_config.yaml").read_bytes() == resolved_before
+
+    warm_output = tmp_path / "warm_run"
+    warm_config = yaml.safe_load(yaml.safe_dump(config))
+    warm_config["output"] = str(warm_output)
+    warm_config["datasets"] = [
+        {"name": "flat", "path": str(first), "weight": 1.0},
+        {"name": "jump", "path": str(second), "weight": 1.0},
+    ]
+    warm_config["training"]["iterations"] = 1
+    warm_config["training"]["normalizer_samples"] = 8
+    warm_path = tmp_path / "warm.yaml"
+    warm_path.write_text(yaml.safe_dump(warm_config), encoding="utf-8")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "train_world_model.py",
+            "--config",
+            str(warm_path),
+            "--init-from",
+            str(checkpoint_2),
+        ],
+    )
+    train_world_model.main()
+    warm = torch.load(
+        warm_output / "checkpoint_00000001.pt", map_location="cpu", weights_only=False
+    )
+    assert warm["iteration"] == 1
+    assert warm["optimizer"]["state"]
+    assert warm["config"]["initialization"]["source_iteration"] == 2
+    assert warm["config"]["initialization"]["optimizer"] == "reset"
+    assert warm["world_model"]["in_norm.count"] == 8
