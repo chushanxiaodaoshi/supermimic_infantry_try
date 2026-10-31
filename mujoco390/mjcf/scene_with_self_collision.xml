@@ -1,0 +1,261 @@
+<mujoco model="wheelleg ONNX play">
+  <compiler angle="radian" meshdir="assets" />
+  <option timestep="0.0025" integrator="implicitfast" iterations="80" ls_iterations="30" ccd_iterations="50" />
+  <size nkey="1" />
+  <visual>
+    <global azimuth="135" elevation="-25" offwidth="1920" offheight="1080" />
+    <quality shadowsize="8192" />
+    <headlight ambient="0.3 0.3 0.3" diffuse="0.6 0.6 0.6" specular="0 0 0" />
+    <scale forcewidth="0.25" contactwidth="0.4" contactheight="0.15" framelength="5" framewidth="0.3" />
+    <rgba haze="0.15 0.25 0.35 1" force="1 0 0 1" />
+  </visual>
+  <statistic meansize="0.03" />
+  <default>
+    <default class="robot/main">
+      <geom contype="0" conaffinity="0" />
+    </default>
+  </default>
+  <asset>
+    <texture type="2d" colorspace="auto" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3" markrgb="0.8 0.8 0.8" width="300" height="300" />
+    <texture type="skybox" colorspace="auto" name="robot/skybox" builtin="gradient" rgb1="0.12 0.25 0.42" rgb2="0.55 0.7 0.82" width="512" height="3072" />
+    <texture type="2d" colorspace="auto" name="robot/ground_checker" builtin="checker" rgb1="0.18 0.2 0.18" rgb2="0.45 0.44 0.39" width="512" height="512" />
+    <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="4 4" reflectance="0.2" />
+    <material name="robot/ground_material" texture="robot/ground_checker" texuniform="true" texrepeat="0.5 0.5" reflectance="0.05" />
+    <mesh name="robot/keyboard_wedge_15deg" vertex="-0.373205 -1 -0.1 -0.373205 1 -0.1 0.373205 -1 -0.1 0.373205 1 -0.1 0.373205 -1 0.1 0.373205 1 0.1" />
+    <mesh name="robot/keyboard_wedge_17deg" vertex="-0.43 -0.572399 -0.175 0.43 -0.572399 -0.175 -0.43 -0.572399 0.175 0.43 -0.572399 0.175 -0.43 0.572399 -0.175 0.43 0.572399 -0.175" />
+    <mesh name="robot/keyboard_ramp_17deg_fill_mesh" vertex="-0.43 -0.572399 -0.1 0.43 -0.572399 -0.1 -0.43 0.572399 -0.1 0.43 0.572399 -0.1 -0.43 -0.572399 0.1 0.43 -0.572399 0.1 -0.43 0.572399 0.1 0.43 0.572399 0.1" />
+    <mesh name="robot/keyboard_down_wedge_23deg" vertex="-0.235585 -1 -0.1 -0.235585 1 -0.1 -0.235585 -1 0.1 -0.235585 1 0.1 0.235585 -1 -0.1 0.235585 1 -0.1" />
+    <mesh name="robot/keyboard_down_wedge_10deg" vertex="-0.567128 -1 -0.1 -0.567128 1 -0.1 -0.567128 -1 0.1 -0.567128 1 0.1 0.567128 -1 -0.1 0.567128 1 -0.1" />
+    <mesh name="robot/keyboard_side_wedge_15deg" vertex="-0.43 -0.373205 -0.1 0.43 -0.373205 -0.1 -0.43 0.373205 -0.1 0.43 0.373205 -0.1 -0.43 0.373205 0.1 0.43 0.373205 0.1" />
+    <mesh name="robot/keyboard_down_wedge_43deg" vertex="-0.214474 -1 -0.2 -0.214474 1 -0.2 -0.214474 -1 0.2 -0.214474 1 0.2 0.214474 -1 -0.2 0.214474 1 -0.2" />
+    <mesh name="robot/keyboard_platform_transition_20deg" vertex="-0.5 -0.137374 -0.05 0.5 -0.137374 -0.05 -0.5 0.137374 -0.05 0.5 0.137374 -0.05 -0.5 0.137374 0.05 0.5 0.137374 0.05" />
+    <mesh name="robot/benchmark_wide_wedge_17deg" vertex="-0.572399 -2 -0.175 -0.572399 2 -0.175 0.572399 -2 -0.175 0.572399 2 -0.175 0.572399 -2 0.175 0.572399 2 0.175" />
+    <mesh name="robot/benchmark_wide_down_wedge_17deg" vertex="-0.572399 -2 -0.175 -0.572399 2 -0.175 -0.572399 -2 0.175 -0.572399 2 0.175 0.572399 -2 -0.175 0.572399 2 -0.175" />
+    <mesh name="robot/jump_task_wide_wedge_43deg" vertex="-0.214474 -2 -0.2 -0.214474 2 -0.2 0.214474 -2 -0.2 0.214474 2 -0.2 0.214474 -2 0.2 0.214474 2 0.2" />
+    <mesh name="robot/ramp_course_beveled_main" vertex="-0.472399 -2 -0.144427 -0.472399 2 -0.144427 0.472399 -2 -0.144427 0.472399 2 -0.144427 0.472399 -2 0.144427 0.472399 2 0.144427" />
+    <mesh name="robot/ramp_course_bevel" vertex="-0.2 -2 -0.175 -0.2 2 -0.175 0.2 -2 -0.175 0.2 2 -0.175 -0.2 -2 0.113854 -0.2 2 0.113854 0.2 -2 0.175 0.2 2 0.175" />
+    <mesh name="robot/base_link" content_type="model/stl" file="fudan/fudan_base_link_del.STL" />
+    <mesh name="robot/Left_front_link" content_type="model/stl" file="fudan/r20_Link.STL" />
+    <mesh name="robot/Left_front_child1_link" content_type="model/stl" file="fudan/r21_Link.STL" />
+    <mesh name="robot/Left_front_child2_link" content_type="model/stl" file="fudan/r22_Link.STL" />
+    <mesh name="robot/Left_front_child3_link" content_type="model/stl" file="fudan/r23_Link.STL" />
+    <mesh name="robot/Left_rear_link" content_type="model/stl" file="fudan/rf0_Link.STL" />
+    <mesh name="robot/Left_rear_child1_link" content_type="model/stl" file="fudan/rf1_Link.STL" />
+    <mesh name="robot/Left_Wheel_link" content_type="model/stl" file="ustl/Right_Wheel_link.STL" />
+    <mesh name="robot/Right_front_link" content_type="model/stl" file="fudan/l20_Link.STL" />
+    <mesh name="robot/Right_front_child1_link" content_type="model/stl" file="fudan/l21_Link.STL" />
+    <mesh name="robot/Right_front_child2_link" content_type="model/stl" file="fudan/l22_Link.STL" />
+    <mesh name="robot/Right_front_child3_link" content_type="model/stl" file="fudan/l23_Link.STL" />
+    <mesh name="robot/Right_rear_link" content_type="model/stl" file="fudan/lf0_Link.STL" />
+    <mesh name="robot/Right_rear_child1_link" content_type="model/stl" file="fudan/lf1_Link.STL" />
+    <mesh name="robot/Right_Wheel_link" content_type="model/stl" file="ustl/Left_Wheel_link.STL" />
+    <mesh name="robot/lf0_self_collision_0" content_type="model/stl" file="fudan/lf0_self_collision_0.STL" />
+    <mesh name="robot/lf0_self_collision_1" content_type="model/stl" file="fudan/lf0_self_collision_1.STL" />
+    <mesh name="robot/lf0_self_collision_3" content_type="model/stl" file="fudan/lf0_self_collision_3.STL" />
+    <mesh name="robot/lf0_self_collision_4" content_type="model/stl" file="fudan/lf0_self_collision_4.STL" />
+    <mesh name="robot/lf0_self_collision_5" content_type="model/stl" file="fudan/lf0_self_collision_5.STL" />
+    <mesh name="robot/lf0_self_collision_6" content_type="model/stl" file="fudan/lf0_self_collision_6.STL" />
+    <mesh name="robot/lf0_self_collision_7" content_type="model/stl" file="fudan/lf0_self_collision_7.STL" />
+    <mesh name="robot/l22_self_collision_2" content_type="model/stl" file="fudan/l22_self_collision_2.STL" />
+    <mesh name="robot/l22_self_collision_5" content_type="model/stl" file="fudan/l22_self_collision_5.STL" />
+    <mesh name="robot/l22_self_collision_6" content_type="model/stl" file="fudan/l22_self_collision_6.STL" />
+    <mesh name="robot/rf0_self_collision_0" content_type="model/stl" file="fudan/rf0_self_collision_0.STL" />
+    <mesh name="robot/rf0_self_collision_1" content_type="model/stl" file="fudan/rf0_self_collision_1.STL" />
+    <mesh name="robot/rf0_self_collision_2" content_type="model/stl" file="fudan/rf0_self_collision_2.STL" />
+    <mesh name="robot/rf0_self_collision_3" content_type="model/stl" file="fudan/rf0_self_collision_3.STL" />
+    <mesh name="robot/rf0_self_collision_4" content_type="model/stl" file="fudan/rf0_self_collision_4.STL" />
+    <mesh name="robot/rf0_self_collision_5" content_type="model/stl" file="fudan/rf0_self_collision_5.STL" />
+    <mesh name="robot/rf0_self_collision_7" content_type="model/stl" file="fudan/rf0_self_collision_7.STL" />
+    <mesh name="robot/r22_self_collision_2" content_type="model/stl" file="fudan/r22_self_collision_2.STL" />
+    <mesh name="robot/r22_self_collision_3" content_type="model/stl" file="fudan/r22_self_collision_3.STL" />
+    <mesh name="robot/r22_self_collision_6" content_type="model/stl" file="fudan/r22_self_collision_6.STL" />
+    <mesh name="standalone_ramp_17deg_35cm_mesh" vertex="-0.572399 -1 0 -0.572399 1 0 0.572399 -1 0 0.572399 1 0 0.572399 -1 0.35 0.572399 1 0.35" face="0 1 3 0 3 2 0 4 5 0 5 1 2 3 5 2 5 4 0 2 4 1 5 3" />
+  </asset>
+  <worldbody>
+    <light name="sun" pos="0 0 1.5" dir="0 0 -1" type="directional" />
+    <body name="terrain">
+      <geom name="terrain" size="0 0 0.01" type="plane" group="2" material="groundplane" />
+    </body>
+    <light name="robot/key_light" pos="-1 -1 2" dir="0.357771 0.268328 -0.894427" type="directional" diffuse="0.8 0.8 0.75" specular="0.2 0.2 0.2" />
+    <light name="robot/fill_light" pos="1 1 1" dir="-0.282216 -0.188144 -0.940721" type="directional" diffuse="0.35 0.38 0.42" specular="0.05 0.05 0.05" />
+    <body name="robot/base_link" pos="0 0 0.07">
+      <inertial pos="0.0040606 -0.0008523 0.097142" quat="0.589964 0.440289 -0.534617 0.415057" mass="16.8776" diaginertia="0.457286 0.35935 0.351919" />
+      <joint name="robot/base_free_joint" type="free" />
+      <geom name="robot/base_link_collision" pos="0 0 0" quat="0 0 0 1" type="mesh" condim="1" rgba="1 1 1 1" mesh="robot/base_link" />
+      <geom name="robot/forward_rangefinder_housing" size="0.03 0.04 0.018" pos="0.23 0 0.01" type="box" contype="0" conaffinity="0" mass="0" rgba="0.12 0.14 0.16 1" />
+      <geom name="robot/forward_rangefinder_lens" size="0.011 0.004" pos="0.264 0 0.01" quat="0.707107 0 0.707107 0" type="cylinder" contype="0" conaffinity="0" mass="0" rgba="0.1 0.75 0.95 1" />
+      <geom name="robot/hurdle_lidar_scan_disc" size="0.02 0.01" pos="0.235 0.08 0.02" quat="0.707107 0.707107 0 0" type="cylinder" contype="0" conaffinity="0" mass="0" rgba="0.1 0.85 1 0.25" />
+      <site name="robot/imu_site" pos="0 0 0" quat="0 0 0 1" />
+      <site name="robot/forward_rangefinder_site" pos="0.27 0 0.01" quat="0.707107 0 0.707107 0" size="0.004 0.002" type="cylinder" rgba="0.2 0.9 1 1" />
+      <site name="robot/Left_virtual_hip_site" pos="0 0.1877 0.08725" rgba="0 1 0 1" />
+      <site name="robot/Right_virtual_hip_site" pos="0 -0.1877 0.08725" rgba="0 1 0 1" />
+      <body name="robot/Left_rear_link" pos="0 0.1877 0.08725" quat="0 0 0.707108 0.707105">
+        <inertial pos="0.0552763 -0.0165544 -0.00927161" quat="-0.005176 0.693173 0.0544357 0.718694" mass="1.1132" diaginertia="0.00641833 0.00468513 0.00204569" />
+        <joint name="robot/Left_rear_joint" pos="0 0 0" axis="0 0 1" range="-100 100" actuatorfrcrange="-100 100" damping="0.03" frictionloss="0.015" />
+        <geom name="robot/rf0_collision" type="mesh" contype="0" conaffinity="0" rgba="1 1 1 1" mesh="robot/Left_rear_link" />
+        <geom name="robot/rf0_self_collision_0" type="mesh" contype="0" conaffinity="0" condim="1" group="3" friction="0 0 0" rgba="1 0.15 0.05 0.3" mesh="robot/rf0_self_collision_0" />
+        <geom name="robot/rf0_self_collision_1" type="mesh" contype="0" conaffinity="0" condim="1" group="3" friction="0 0 0" rgba="1 0.15 0.05 0.3" mesh="robot/rf0_self_collision_1" />
+        <geom name="robot/rf0_self_collision_2" type="mesh" contype="0" conaffinity="0" condim="1" group="3" friction="0 0 0" rgba="1 0.15 0.05 0.3" mesh="robot/rf0_self_collision_2" />
+        <geom name="robot/rf0_self_collision_3" type="mesh" contype="0" conaffinity="0" condim="1" group="3" friction="0 0 0" rgba="1 0.15 0.05 0.3" mesh="robot/rf0_self_collision_3" />
+        <geom name="robot/rf0_self_collision_4" type="mesh" contype="0" conaffinity="0" condim="1" group="3" friction="0 0 0" rgba="1 0.15 0.05 0.3" mesh="robot/rf0_self_collision_4" />
+        <geom name="robot/rf0_self_collision_5" type="mesh" contype="0" conaffinity="0" condim="1" group="3" friction="0 0 0" rgba="1 0.15 0.05 0.3" mesh="robot/rf0_self_collision_5" />
+        <geom name="robot/rf0_self_collision_7" type="mesh" contype="0" conaffinity="0" condim="1" group="3" friction="0 0 0" rgba="1 0.15 0.05 0.3" mesh="robot/rf0_self_collision_7" />
+        <site name="robot/Left_rear_site1" pos="0.09435 0 0" rgba="1 0 0 1" />
+        <site name="robot/right_lf0_qitanhuang" pos="0.0155 -0.0445 -0.008" rgba="1 0 0 1" />
+        <body name="robot/Left_rear_child1_link" pos="0.17472 0 0">
+          <inertial pos="-0.00283459 -0.0710676 0.0068255" quat="0.483182 0.50274 -0.490133 0.523027" mass="0.306873" diaginertia="0.0025405 0.00248016 8.5602e-05" />
+          <joint name="robot/Left_rear_child1_joint" pos="0 0 0" axis="0 0 1" limited="true" range="-1.1 0.63" actuatorfrcrange="-100 100" damping="0.03" frictionloss="0.015" />
+          <geom type="mesh" contype="0" conaffinity="0" rgba="1 1 1 1" mesh="robot/Left_rear_child1_link" />
+          <site name="robot/Left_rear_site2" pos="-0.0160931 0.0609099 0" rgba="1 0 0 1" />
+          <site name="robot/right_lf1_qitanhuang" pos="0.005 -0.046 -0.005" size="0.01" rgba="1 0 0 1" />
+          <body name="robot/Left_Wheel_link" pos="0 -0.208 0.016">
+            <inertial pos="-0.00017762 -0.00010174 0.0099965" quat="-0.511946 0.487829 0.511912 0.487729" mass="0.71" diaginertia="0.00119419 0.000629452 0.000625333" />
+            <joint name="robot/Left_Wheel_joint" pos="0 0 0" axis="0 0 1" actuatorfrcrange="-100 100" damping="0.002" frictionloss="0.001" />
+            <geom name="robot/Left_Wheel_link_visual" quat="0 0 0.707107 0.707107" type="mesh" contype="0" conaffinity="0" rgba="0.18 0.18 0.18 1" mesh="robot/Left_Wheel_link" />
+            <geom name="robot/Left_wheel_collision" size="0.058 0.028" pos="0 0 0.002" type="cylinder" priority="1" rgba="0 0 0 0" />
+            <site name="robot/Left_wheel_axis_site" pos="0 0 0" rgba="0 0 1 1" />
+          </body>
+        </body>
+      </body>
+      <body name="robot/Right_rear_link" pos="0 -0.1877 0.08725" quat="0 0 -0.707108 0.707105">
+        <inertial pos="0.055403 0.016584 -0.0092702" quat="0.00463484 0.693099 -0.0538381 0.718814" mass="1.1128" diaginertia="0.00641157 0.0046755 0.00204815" />
+        <joint name="robot/Right_rear_joint" pos="0 0 0" axis="0 0 1" range="-100 100" actuatorfrcrange="-100 100" damping="0.03" frictionloss="0.015" />
+        <geom name="robot/lf0_collision" type="mesh" contype="0" conaffinity="0" rgba="1 1 1 1" mesh="robot/Right_rear_link" />
+        <geom name="robot/lf0_self_collision_0" type="mesh" contype="0" conaffinity="0" condim="1" group="3" friction="0 0 0" rgba="1 0.15 0.05 0.3" mesh="robot/lf0_self_collision_0" />
+        <geom name="robot/lf0_self_collision_1" type="mesh" contype="0" conaffinity="0" condim="1" group="3" friction="0 0 0" rgba="1 0.15 0.05 0.3" mesh="robot/lf0_self_collision_1" />
+        <geom name="robot/lf0_self_collision_3" type="mesh" contype="0" conaffinity="0" condim="1" group="3" friction="0 0 0" rgba="1 0.15 0.05 0.3" mesh="robot/lf0_self_collision_3" />
+        <geom name="robot/lf0_self_collision_4" type="mesh" contype="0" conaffinity="0" condim="1" group="3" friction="0 0 0" rgba="1 0.15 0.05 0.3" mesh="robot/lf0_self_collision_4" />
+        <geom name="robot/lf0_self_collision_5" type="mesh" contype="0" conaffinity="0" condim="1" group="3" friction="0 0 0" rgba="1 0.15 0.05 0.3" mesh="robot/lf0_self_collision_5" />
+        <geom name="robot/lf0_self_collision_6" type="mesh" contype="0" conaffinity="0" condim="1" group="3" friction="0 0 0" rgba="1 0.15 0.05 0.3" mesh="robot/lf0_self_collision_6" />
+        <geom name="robot/lf0_self_collision_7" type="mesh" contype="0" conaffinity="0" condim="1" group="3" friction="0 0 0" rgba="1 0.15 0.05 0.3" mesh="robot/lf0_self_collision_7" />
+        <site name="robot/Right_rear_site1" pos="0.09435 0 0" rgba="1 0 0 1" />
+        <site name="robot/left_lf0_qitanhuang" pos="0.0155 0.0445 -0.008" rgba="1 0 0 1" />
+        <body name="robot/Right_rear_child1_link" pos="0.17472 0 0">
+          <inertial pos="-0.0028358 0.071068 0.0068255" quat="0.50274 0.483182 -0.523027 0.490133" mass="0.30687" diaginertia="0.0025405 0.00248016 8.5602e-05" />
+          <joint name="robot/Right_rear_child1_joint" pos="0 0 0" axis="0 0 1" limited="true" range="-0.63 1.1" actuatorfrcrange="-100 100" damping="0.03" frictionloss="0.015" />
+          <geom type="mesh" contype="0" conaffinity="0" rgba="1 1 1 1" mesh="robot/Right_rear_child1_link" />
+          <site name="robot/Right_rear_site2" pos="-0.0160931 -0.0609099 0" size="0.01" rgba="1 0 0 1" />
+          <site name="robot/left_lf1_qitanhuang" pos="0.005 0.046 -0.005" size="0.01" rgba="1 0 0 1" />
+          <body name="robot/Right_Wheel_link" pos="0 0.208 0.016">
+            <inertial pos="-0.00015229 0.00013677 0.0099965" quat="0.129232 0.695159 0.129318 -0.69522" mass="0.71" diaginertia="0.00119419 0.000629455 0.00062533" />
+            <joint name="robot/Right_Wheel_joint" pos="0 0 0" axis="0 0 1" actuatorfrcrange="-100 100" damping="0.002" frictionloss="0.001" />
+            <geom name="robot/Right_Wheel_link_visual" quat="0 0 0.707107 -0.707107" type="mesh" contype="0" conaffinity="0" rgba="0.18 0.18 0.18 1" mesh="robot/Right_Wheel_link" />
+            <geom name="robot/Right_wheel_collision" size="0.058 0.028" pos="0 0 0.002" type="cylinder" priority="1" rgba="0 0 0 0" />
+            <site name="robot/Right_wheel_axis_site" pos="0 0 0" rgba="0 0 1 1" />
+          </body>
+        </body>
+      </body>
+      <body name="robot/Left_front_link" pos="0 0.1877 0.08725" quat="0 0 0.707108 0.707105">
+        <inertial pos="-0.0077129 -0.044014 0.0053168" quat="0.54287 0.453598 -0.539995 0.456012" mass="0.058433" diaginertia="0.000101653 9.09634e-05 1.15321e-05" />
+        <joint name="robot/Left_front_joint" pos="0 0 0" axis="0 0 1" actuatorfrcrange="-100 100" damping="0.03" frictionloss="0.015" />
+        <geom type="mesh" contype="0" conaffinity="0" rgba="1 1 1 1" mesh="robot/Left_front_link" />
+        <body name="robot/Left_front_child1_link" pos="-0.016285 -0.092933 0.01">
+          <inertial pos="0.05374 -0.013258 -0.01451" quat="0.0690441 0.704772 -0.0560118 0.70384" mass="0.042999" diaginertia="7.83158e-05 7.61359e-05 2.77956e-06" />
+          <joint name="robot/Left_front_child1_joint" pos="0 0 0" axis="0 0 1" actuatorfrcrange="-100 100" />
+          <geom type="mesh" contype="0" conaffinity="0" rgba="1 1 1 1" mesh="robot/Left_front_child1_link" />
+          <body name="robot/Left_front_child2_link" pos="0.11063 -0.019387 0">
+            <inertial pos="-0.006381 0.08888 -0.0045" quat="0.475753 0.523125 -0.475753 0.523125" mass="0.065877" diaginertia="0.00021104 0.000205523 6.41108e-06" />
+            <joint name="robot/Left_front_child2_joint" pos="0 0 0" axis="0 0 1" actuatorfrcrange="-100 100" />
+            <geom name="robot/r22_collision" type="mesh" contype="0" conaffinity="0" rgba="1 1 1 1" mesh="robot/Left_front_child2_link" />
+            <geom name="robot/r22_self_collision_2" type="mesh" contype="0" conaffinity="0" condim="1" group="3" friction="0 0 0" rgba="1 0.15 0.05 0.3" mesh="robot/r22_self_collision_2" />
+            <geom name="robot/r22_self_collision_3" type="mesh" contype="0" conaffinity="0" condim="1" group="3" friction="0 0 0" rgba="1 0.15 0.05 0.3" mesh="robot/r22_self_collision_3" />
+            <geom name="robot/r22_self_collision_6" type="mesh" contype="0" conaffinity="0" condim="1" group="3" friction="0 0 0" rgba="1 0.15 0.05 0.3" mesh="robot/r22_self_collision_6" />
+            <site name="robot/Left_front_site1" pos="0 0.11232 -0.01" rgba="1 1 0 1" />
+            <body name="robot/Left_front_child3_link" pos="-0.018032 0.17268 0">
+              <inertial pos="0.040186 0 -0.014509" quat="0 0.707107 0 0.707107" mass="0.010945" diaginertia="1.0337e-05 9.8695e-06 6.2034e-07" />
+              <joint name="robot/Left_front_child3_joint" pos="0 0 0" axis="0 0 1" actuatorfrcrange="-100 100" />
+              <geom type="mesh" contype="0" conaffinity="0" rgba="1 1 1 1" mesh="robot/Left_front_child3_link" />
+              <site name="robot/Left_front_site2" pos="0.08037 0 -0.01" rgba="1 1 0 1" />
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="robot/Right_front_link" pos="0 -0.1877 0.08725" quat="0 0 -0.707108 0.707105">
+        <inertial pos="-0.0077129 -0.044014 0.0053168" quat="-0.066476 0.705194 0.0534809 0.703863" mass="0.058433" diaginertia="7.83158e-05 7.61355e-05 2.77958e-06" />
+        <joint name="robot/Right_front_joint" pos="0 0 0" axis="0 0 1" actuatorfrcrange="-100 100" damping="0.03" frictionloss="0.015" />
+        <geom type="mesh" contype="0" conaffinity="0" rgba="1 1 1 1" mesh="robot/Right_front_link" />
+        <body name="robot/Right_front_child1_link" pos="-0.016285 0.092933 0.01">
+          <inertial pos="0.055588 0.013582 -0.01451" quat="-0.066476 0.705194 0.0534809 0.703863" mass="0.042999" diaginertia="7.83158e-05 7.61355e-05 2.77958e-06" />
+          <joint name="robot/Right_front_child1_joint" pos="0 0 0" axis="0 0 1" actuatorfrcrange="-100 100" />
+          <geom type="mesh" contype="0" conaffinity="0" rgba="1 1 1 1" mesh="robot/Right_front_child1_link" />
+          <body name="robot/Right_front_child2_link" pos="0.11063 0.019387 0">
+            <inertial pos="-0.006381 -0.08888 -0.0045" quat="0.523125 0.475753 -0.523125 0.475753" mass="0.065877" diaginertia="0.00021104 0.000205523 6.41108e-06" />
+            <joint name="robot/Right_front_child2_joint" pos="0 0 0" axis="0 0 1" actuatorfrcrange="-100 100" />
+            <geom name="robot/l22_collision" type="mesh" contype="0" conaffinity="0" rgba="1 1 1 1" mesh="robot/Right_front_child2_link" />
+            <geom name="robot/l22_self_collision_2" type="mesh" contype="0" conaffinity="0" condim="1" group="3" friction="0 0 0" rgba="1 0.15 0.05 0.3" mesh="robot/l22_self_collision_2" />
+            <geom name="robot/l22_self_collision_5" type="mesh" contype="0" conaffinity="0" condim="1" group="3" friction="0 0 0" rgba="1 0.15 0.05 0.3" mesh="robot/l22_self_collision_5" />
+            <geom name="robot/l22_self_collision_6" type="mesh" contype="0" conaffinity="0" condim="1" group="3" friction="0 0 0" rgba="1 0.15 0.05 0.3" mesh="robot/l22_self_collision_6" />
+            <site name="robot/Right_front_site1" pos="0 -0.11232 -0.01" rgba="1 1 0 1" />
+            <body name="robot/Right_front_child3_link" pos="-0.018032 -0.17268 0">
+              <inertial pos="0.040186 0 -0.014509" quat="0 0.707107 0 0.707107" mass="0.010945" diaginertia="1.0337e-05 9.8695e-06 6.2034e-07" />
+              <joint name="robot/Right_front_joint3_joint" pos="0 0 0" axis="0 0 1" actuatorfrcrange="-100 100" />
+              <geom type="mesh" contype="0" conaffinity="0" rgba="1 1 1 1" mesh="robot/Right_front_child3_link" />
+              <site name="robot/Right_front_site2" pos="0.08037 0 -0.01" rgba="1 1 0 1" />
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+    <body name="standalone_test_terrain">
+      <geom name="standalone_step_05cm" size="0.6 0.8 0.025" pos="1.2 -3 0.025" type="box" group="2" rgba="0.25 0.65 0.95 1" />
+      <geom name="standalone_step_10cm" size="0.6 0.8 0.05" pos="2.8 -3 0.05" type="box" group="2" rgba="0.3 0.75 0.55 1" />
+      <geom name="standalone_step_20cm" size="0.6 0.8 0.1" pos="4.4 -3 0.1" type="box" group="2" rgba="0.95 0.55 0.25 1" />
+      <geom name="standalone_ramp_17deg_35cm" pos="2 3 0" quat="1 0 0 0" type="mesh" group="2" rgba="0.65 0.35 0.9 1" mesh="standalone_ramp_17deg_35cm_mesh" />
+    </body>
+  </worldbody>
+  <equality>
+    <connect name="robot/Left_loop1" site1="robot/Left_front_site1" site2="robot/Left_rear_site1" solref="-24000 -309.839" solimp="0.99995 0.9999 1e-05" />
+    <connect name="robot/Left_loop2" site1="robot/Left_front_site2" site2="robot/Left_rear_site2" solref="-24000 -309.839" solimp="0.99995 0.9999 1e-05" />
+    <connect name="robot/Right_loop1" site1="robot/Right_front_site1" site2="robot/Right_rear_site1" solref="-24000 -309.839" solimp="0.99995 0.9999 1e-05" />
+    <connect name="robot/Right_loop2" site1="robot/Right_front_site2" site2="robot/Right_rear_site2" solref="-24000 -309.839" solimp="0.99995 0.9999 1e-05" />
+  </equality>
+  <tendon>
+    <spatial name="robot/Left_gas_spring_tendon" width="0.001">
+      <site site="robot/right_lf1_qitanhuang" />
+      <site site="robot/right_lf0_qitanhuang" />
+    </spatial>
+    <spatial name="robot/Right_gas_spring_tendon" width="0.001">
+      <site site="robot/left_lf1_qitanhuang" />
+      <site site="robot/left_lf0_qitanhuang" />
+    </spatial>
+  </tendon>
+  <actuator>
+    <general name="robot/Left_rear_joint" joint="robot/Left_rear_joint"
+      ctrllimited="false" forcelimited="true" forcerange="-20 20"
+      biastype="affine" gainprm="15" biasprm="0 -15 -1" />
+    <general name="robot/Right_rear_joint" joint="robot/Right_rear_joint"
+      ctrllimited="false" forcelimited="true" forcerange="-20 20"
+      biastype="affine" gainprm="15" biasprm="0 -15 -1" />
+    <general name="robot/Left_front_joint" joint="robot/Left_front_joint"
+      ctrllimited="false" forcelimited="true" forcerange="-20 20"
+      biastype="affine" gainprm="15" biasprm="0 -15 -1" />
+    <general name="robot/Right_front_joint" joint="robot/Right_front_joint"
+      ctrllimited="false" forcelimited="true" forcerange="-20 20"
+      biastype="affine" gainprm="15" biasprm="0 -15 -1" />
+    <general name="robot/Left_Wheel_joint" joint="robot/Left_Wheel_joint"
+      ctrllimited="false" forcelimited="true" forcerange="-4 4"
+      biastype="affine" gainprm="0.1" biasprm="0 0 -0.1" />
+    <general name="robot/Right_Wheel_joint" joint="robot/Right_Wheel_joint"
+      ctrllimited="false" forcelimited="true" forcerange="-4 4"
+      biastype="affine" gainprm="0.1" biasprm="0 0 -0.1" />
+    <general name="robot/Left_gas_spring_tendon" tendon="robot/Left_gas_spring_tendon" ctrllimited="true" ctrlrange="-350 350" forcelimited="true" forcerange="-350 350" />
+    <general name="robot/Right_gas_spring_tendon" tendon="robot/Right_gas_spring_tendon" ctrllimited="true" ctrlrange="-350 350" forcelimited="true" forcerange="-350 350" />
+  </actuator>
+  <sensor>
+    <framequat objtype="site" objname="robot/imu_site" name="robot/imu_attitude_sensor" />
+    <gyro site="robot/imu_site" name="robot/imu_gyro_sensor" />
+    <accelerometer site="robot/imu_site" name="robot/imu_acceleration_sensor" />
+    <framepos objtype="site" objname="robot/Left_wheel_axis_site" reftype="site" refname="robot/Left_virtual_hip_site" name="robot/Left_leg_position_sensor" />
+    <framepos objtype="site" objname="robot/Right_wheel_axis_site" reftype="site" refname="robot/Right_virtual_hip_site" name="robot/Right_leg_position_sensor" />
+    <rangefinder site="robot/forward_rangefinder_site" name="robot/forward_rangefinder_sensor" cutoff="2" />
+    <contact geom1="robot/Left_wheel_collision" body2="terrain" reduce="netforce" name="wheel_ground_contact_Left_wheel_collision_found" />
+    <contact geom1="robot/Left_wheel_collision" body2="terrain" data="force" reduce="netforce" name="wheel_ground_contact_Left_wheel_collision_force" />
+    <contact geom1="robot/Right_wheel_collision" body2="terrain" reduce="netforce" name="wheel_ground_contact_Right_wheel_collision_found" />
+    <contact geom1="robot/Right_wheel_collision" body2="terrain" data="force" reduce="netforce" name="wheel_ground_contact_Right_wheel_collision_force" />
+    <contact geom1="robot/base_link_collision" body2="terrain" name="base_ground_contact_base_link_collision_found" />
+    <contact geom1="robot/base_link_collision" body2="terrain" data="force" name="base_ground_contact_base_link_collision_force" />
+  </sensor>
+  <keyframe>
+    <key name="init_state" qpos="0 0 0.2 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0" />
+  </keyframe>
+</mujoco>

@@ -1,11 +1,11 @@
 asset:
-  replay_source: ${MJLAB_ROOT}/mujoco390/run_policy.py
-  mjcf: ${MJLAB_ROOT}/mujoco390/mjcf/scene.xml
+  replay_source: ../../../mujoco390/run_policy.py
+  mjcf: ../../../mujoco390/mjcf/scene.xml
   usd: ../../../data/infantry_usd/Fudan-2026RoboMaster-Balance/Fudan-2026RoboMaster-Balance.usda
 teacher:
   name: jump_v8
   skill: jump
-  onnx: ${MJLAB_ROOT}/mujoco390/onnx/jump.onnx
+  onnx: ../../../mujoco390/onnx/jump.onnx
   id: 2
   task_id: 2
 commands:

@@ -1,0 +1,46 @@
+<mujocoinclude>
+  <!-- Compact map: x=2..14, y=-6..6; nine adjacent 4x4 metre tiles.
+       Keep the infinite safety plane below pits, not at z=0. -->
+  <geom name="compact_floor_left" type="box" group="2"
+        pos="-24 0 -0.1" size="26 50 0.1" material="groundplane" />
+  <geom name="compact_floor_right" type="box" group="2"
+        pos="32 0 -0.1" size="18 50 0.1" material="groundplane" />
+  <geom name="compact_floor_top" type="box" group="2"
+        pos="8 28 -0.1" size="6 22 0.1" material="groundplane" />
+  <geom name="compact_floor_bottom" type="box" group="2"
+        pos="8 -28 -0.1" size="6 22 0.1" material="groundplane" />
+  <geom name="compact_rm_floor" type="box" group="2"
+        pos="8 0 -0.1" size="6 2 0.1" material="groundplane" />
+  <!-- x=10..14,y=-2..2 is an empty flight landing tile; no obstacles.
+       The rough tile was moved to the side at (0,+4). -->
+
+  <!-- Tile centre (4,0): original vertical dimensions, shorter footprint.
+       x=2.4..3.5: 20cm; x=3.5..3.62: 35cm lip;
+       x=3.62..4.8: 30cm; x=4.8..5.6: 20cm; then ground. -->
+  <geom name="rm_double_step_base" type="box" group="2"
+        pos="4 0 0.10" size="1.6 1.2 0.10" friction="0.8"
+        rgba="0.85 0.36 0.18 1" />
+  <geom name="rm_double_step_upper" type="box" group="2"
+        pos="4.15 0 0.25" size="0.65 1.2 0.05" friction="0.8"
+        rgba="0.95 0.62 0.15 1" />
+  <geom name="rm_double_step_entry_lip" type="box" group="2"
+        pos="3.56 0 0.325" size="0.06 1.2 0.025" friction="0.8"
+        rgba="1 0.85 0.12 1" />
+
+  <!-- Tile centre (8,0): existing 17 degree flight ramp, exit height 35cm.
+       Drive +X; the abrupt high-end edge is intentionally a flight exit. -->
+  <geom name="standalone_ramp_17deg_35cm" pos="8 0 0" type="mesh" group="2"
+        rgba="0.65 0.35 0.9 1" friction="0.8"
+        mesh="standalone_ramp_17deg_35cm_mesh" />
+
+  <!-- Preserve single 5/10/20cm tests in a narrow side lane in the RM tile. -->
+  <geom name="standalone_step_05cm" type="box" group="2"
+        pos="2.8 -1.65 0.025" size="0.3 0.25 0.025"
+        rgba="0.25 0.65 0.95 1" />
+  <geom name="standalone_step_10cm" type="box" group="2"
+        pos="3.8 -1.65 0.05" size="0.3 0.25 0.05"
+        rgba="0.3 0.75 0.55 1" />
+  <geom name="standalone_step_20cm" type="box" group="2"
+        pos="4.8 -1.65 0.1" size="0.3 0.25 0.1"
+        rgba="0.95 0.55 0.25 1" />
+</mujocoinclude>

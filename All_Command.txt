@@ -33,10 +33,10 @@ cd /workspace/supermimic
 
 /opt/isaaclab-venv/bin/python tools/replay_isaaclab_teacher.py \
   --config configs/infantry/collection/isaaclab_flat.yaml \
-  --replay /workspace/mujoco390/run_policy.py \
-  --mjcf /workspace/mujoco390/mjcf/scene.xml \
+  --replay /workspace/supermimic/mujoco390/run_policy.py \
+  --mjcf /workspace/supermimic/mujoco390/mjcf/scene.xml \
   --usd /workspace/supermimic/data/infantry_usd/Fudan-2026RoboMaster-Balance/Fudan-2026RoboMaster-Balance.usda \
-  --onnx /workspace/mujoco390/onnx/rough.onnx \
+  --onnx /workspace/supermimic/mujoco390/onnx/rough.onnx \
   --visualizer newton_gl
 
 
@@ -49,10 +49,10 @@ cd /workspace/supermimic
 
 /opt/isaaclab-venv/bin/python tools/replay_isaaclab_teacher.py \
   --config configs/infantry/collection/isaaclab_flat.yaml \
-  --replay /workspace/mujoco390/run_policy.py \
-  --mjcf /workspace/mujoco390/mjcf/scene.xml \
+  --replay /workspace/supermimic/mujoco390/run_policy.py \
+  --mjcf /workspace/supermimic/mujoco390/mjcf/scene.xml \
   --usd /workspace/supermimic/data/infantry_usd/Fudan-2026RoboMaster-Balance/Fudan-2026RoboMaster-Balance.usda \
-  --onnx /workspace/mujoco390/onnx/rough.onnx \
+  --onnx /workspace/supermimic/mujoco390/onnx/rough.onnx \
   --visualizer newton_gl \
   --steps 30
 
@@ -66,10 +66,10 @@ cd /workspace/supermimic
 
 /opt/isaaclab-venv/bin/python tools/replay_isaaclab_teacher.py \
   --config configs/infantry/collection/isaaclab_flat.yaml \
-  --replay /workspace/mujoco390/run_policy.py \
-  --mjcf /workspace/mujoco390/mjcf/scene.xml \
+  --replay /workspace/supermimic/mujoco390/run_policy.py \
+  --mjcf /workspace/supermimic/mujoco390/mjcf/scene.xml \
   --usd /workspace/supermimic/data/infantry_usd/Fudan-2026RoboMaster-Balance/Fudan-2026RoboMaster-Balance.usda \
-  --onnx /workspace/mujoco390/onnx/rough.onnx \
+  --onnx /workspace/supermimic/mujoco390/onnx/rough.onnx \
   --visualizer newton_gl \
   --steps 1000
 
@@ -81,10 +81,10 @@ cd /workspace/supermimic
 # run_policy.py 会自动使用 scene.xml 对应的 initial_state.npz。
 # 运行结束后第二条 cd 命令返回 SuperMimic 仓库。
 
-cd /workspace/mujoco390
+cd /workspace/supermimic/mujoco390
 /opt/isaaclab-venv/bin/python run_policy.py \
-  --onnx /workspace/mujoco390/onnx/rough.onnx \
-  --xml /workspace/mujoco390/mjcf/scene.xml
+  --onnx /workspace/supermimic/mujoco390/onnx/rough.onnx \
+  --xml /workspace/supermimic/mujoco390/mjcf/scene.xml
 cd /workspace/supermimic
 
 
@@ -138,7 +138,6 @@ cd /workspace/supermimic
 # 采集器要求输出目录不存在或为空，禁止覆盖以前的数据。
 # 第一条命令只设置本次输出目录，第二条命令才开始采集。
 
-export MJLAB_ROOT=/workspace
 export SUPERMIMIC_NEW_DATASET_DIR=/workspace/supermimic/data/teacher_isaaclab_flat_REPLACE_01
 /opt/isaaclab-venv/bin/python tools/collect_isaaclab_teacher.py \
   --config configs/infantry/collection/isaaclab_flat.yaml \
@@ -147,7 +146,6 @@ export SUPERMIMIC_NEW_DATASET_DIR=/workspace/supermimic/data/teacher_isaaclab_fl
 # 用途：采集 jump Teacher。默认目录必须不存在；当前正式数据已经采集完成，
 # 只有在需要新的独立运行时才修改 --output 后重新执行。
 
-export MJLAB_ROOT=/workspace
 /opt/isaaclab-venv/bin/python tools/collect_isaaclab_teacher.py \
   --config configs/infantry/collection/isaaclab_jump.yaml \
   --output /workspace/supermimic/data/teacher_isaaclab_jump_REPLACE_01
@@ -161,9 +159,8 @@ export MJLAB_ROOT=/workspace
 # 8/5 时，自转同时前后平移。正式采集前必须先目视验证行为。
 #
 # ONNX 目标路径：
-# /workspace/mujoco390/onnx/spin_move_testA++rewardfine1.onnx
+# /workspace/supermimic/mujoco390/onnx/spin_move_testA++rewardfine1.onnx
 
-export MJLAB_ROOT=/workspace
 /opt/isaaclab-venv/bin/python tools/collect_isaaclab_teacher.py \
   --config configs/infantry/collection/isaaclab_rotation.yaml \
   --validate-only
@@ -188,7 +185,6 @@ export MJLAB_ROOT=/workspace
 # --init-from 会重新统计混合数据归一化、等价变换网络并重置优化器；
 # 它不是断点恢复，输出写入配置中的新目录 results/world_model_flat_jump_01。
 
-export MJLAB_ROOT=/workspace
 /opt/isaaclab-venv/bin/python tools/train_world_model.py \
   --config configs/infantry/world_model_flat_jump_cloud.yaml \
   --init-from results/world_model_flat_05/checkpoint_00100000.pt

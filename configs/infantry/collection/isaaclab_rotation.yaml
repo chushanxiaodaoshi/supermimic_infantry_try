@@ -1,13 +1,13 @@
 asset:
-  replay_source: ${MJLAB_ROOT}/mujoco390/run_policy.py
-  mjcf: ${MJLAB_ROOT}/mujoco390/mjcf/scene.xml
+  replay_source: ../../../mujoco390/run_policy.py
+  mjcf: ../../../mujoco390/mjcf/scene.xml
   usd: ../../../data/infantry_usd/Fudan-2026RoboMaster-Balance/Fudan-2026RoboMaster-Balance.usda
 teacher:
   name: independent_rotation
   skill: rotation
   # This is the independent spin policy selected by run_normal_policy.py at
   # mjlab commit 3cf0bd7.  It is separate from the default rough.onnx policy.
-  onnx: ${MJLAB_ROOT}/mujoco390/onnx/spin_move_testA++rewardfine1.onnx
+  onnx: ../../../mujoco390/onnx/spin_move_testA++rewardfine1.onnx
   id: 1
   task_id: 1
 commands:

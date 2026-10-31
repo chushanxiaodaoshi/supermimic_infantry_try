@@ -31,6 +31,36 @@ def test_teacher_roles_follow_replay_weight_selection() -> None:
         assert Path(teacher["onnx"]).name == basename
 
 
+def test_teacher_configs_resolve_vendored_reference_without_mjlab_root(
+    monkeypatch,
+) -> None:
+    monkeypatch.delenv("MJLAB_ROOT", raising=False)
+    for filename in (
+        "isaaclab_flat.yaml",
+        "isaaclab_jump.yaml",
+        "isaaclab_rotation.yaml",
+    ):
+        args = SimpleNamespace(
+            config=CONFIG_DIR / filename,
+            replay=None,
+            mjcf=None,
+            usd=None,
+            onnx=None,
+            output=None,
+            steps=None,
+            seed=None,
+            validate_only=True,
+        )
+        config = load_config(args)
+        reference_paths = (
+            config["asset"]["replay_source"],
+            config["asset"]["mjcf"],
+            config["teacher"]["onnx"],
+        )
+        assert all(path.is_file() for path in reference_paths)
+        assert all(path.is_relative_to(ROOT / "mujoco390") for path in reference_paths)
+
+
 def test_rotation_collection_covers_translation_while_spinning() -> None:
     commands = _load("isaaclab_rotation.yaml")["commands"]
     assert commands == {

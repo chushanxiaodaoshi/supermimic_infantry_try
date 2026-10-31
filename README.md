@@ -209,6 +209,12 @@ current scope is deliberately limited to three existing ONNX PPO Teachers
 world-model pretraining. It does not train a Student, Actor/Critic, BC/DAgger,
 reference tracker, or BPTT policy.
 
+The self-contained MuJoCo 3.9 reference is vendored in `mujoco390/`. It is the
+source of the replay observation/control contract and includes the MJCF assets,
+initial state, and the three ONNX Teachers used by the collection configs. The
+configs resolve these files relative to the repository and do not require a
+separate `MJLAB_ROOT` checkout.
+
 Prepare the imported asset and validate all three Teacher contracts:
 
 ```powershell

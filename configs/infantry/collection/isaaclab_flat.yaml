@@ -1,13 +1,13 @@
 asset:
-  replay_source: ${MJLAB_ROOT}/mujoco390/run_policy.py
-  mjcf: ${MJLAB_ROOT}/mujoco390/mjcf/scene.xml
+  replay_source: ../../../mujoco390/run_policy.py
+  mjcf: ../../../mujoco390/mjcf/scene.xml
   usd: ../../../data/infantry_usd/Fudan-2026RoboMaster-Balance/Fudan-2026RoboMaster-Balance.usda
 teacher:
   # run_policy.py loads rough.onnx as its default locomotion policy.  "rough" is
   # the artifact filename/session label, not the skill assigned to this dataset.
   name: flat_default_replay
   skill: flat
-  onnx: ${MJLAB_ROOT}/mujoco390/onnx/rough.onnx
+  onnx: ../../../mujoco390/onnx/rough.onnx
   id: 0
   task_id: 0
 commands:

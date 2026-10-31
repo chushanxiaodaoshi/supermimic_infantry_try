@@ -1,0 +1,238 @@
+{
+  "seed": 42,
+  "difficulty": 0.5,
+  "height_scale": 3.0,
+  "stairs_height_scale": 1.5,
+  "tile_size": [
+    4.0,
+    4.0
+  ],
+  "bounds": [
+    -2.0,
+    14.0,
+    -6.0,
+    6.0
+  ],
+  "tiles": [
+    {
+      "name": "slope_up",
+      "center": [
+        4.0,
+        4.0
+      ],
+      "config": {
+        "proportion": 1.0,
+        "size": [
+          4.0,
+          4.0
+        ],
+        "flat_patch_sampling": null,
+        "slope_range": [
+          0.0,
+          1.0499999999999998
+        ],
+        "platform_width": 1.2,
+        "inverted": false,
+        "border_width": 0.2,
+        "horizontal_scale": 0.2,
+        "vertical_scale": 0.005,
+        "base_thickness_ratio": 1.0
+      },
+      "origin": [
+        4.0,
+        4.0,
+        0.5700000000000001
+      ]
+    },
+    {
+      "name": "slope_down",
+      "center": [
+        8.0,
+        4.0
+      ],
+      "config": {
+        "proportion": 1.0,
+        "size": [
+          4.0,
+          4.0
+        ],
+        "flat_patch_sampling": null,
+        "slope_range": [
+          0.0,
+          1.0499999999999998
+        ],
+        "platform_width": 1.2,
+        "inverted": true,
+        "border_width": 0.2,
+        "horizontal_scale": 0.2,
+        "vertical_scale": 0.005,
+        "base_thickness_ratio": 1.0
+      },
+      "origin": [
+        8.0,
+        4.0,
+        -0.5700000000000001
+      ]
+    },
+    {
+      "name": "waves",
+      "center": [
+        12.0,
+        4.0
+      ],
+      "config": {
+        "proportion": 1.0,
+        "size": [
+          4.0,
+          4.0
+        ],
+        "flat_patch_sampling": null,
+        "amplitude_range": [
+          0.0,
+          0.36
+        ],
+        "num_waves": 2,
+        "horizontal_scale": 0.2,
+        "vertical_scale": 0.005,
+        "base_thickness_ratio": 0.25,
+        "border_width": 0.2
+      },
+      "origin": [
+        12.0,
+        4.0,
+        0.0
+      ]
+    },
+    {
+      "name": "stairs_up",
+      "center": [
+        4.0,
+        -4.0
+      ],
+      "config": {
+        "proportion": 1.0,
+        "size": [
+          4.0,
+          4.0
+        ],
+        "flat_patch_sampling": null,
+        "border_width": 0.2,
+        "step_height_range": [
+          0.052500000000000005,
+          0.2415
+        ],
+        "step_width": 0.6,
+        "platform_width": 1.2,
+        "holes": false
+      },
+      "origin": [
+        4.0,
+        -4.0,
+        0.44100000000000006
+      ]
+    },
+    {
+      "name": "stairs_down",
+      "center": [
+        8.0,
+        -4.0
+      ],
+      "config": {
+        "proportion": 1.0,
+        "size": [
+          4.0,
+          4.0
+        ],
+        "flat_patch_sampling": null,
+        "border_width": 0.2,
+        "step_height_range": [
+          0.052500000000000005,
+          0.2415
+        ],
+        "step_width": 0.6,
+        "platform_width": 1.2,
+        "holes": false
+      },
+      "origin": [
+        8.0,
+        -4.0,
+        -0.44100000000000006
+      ]
+    },
+    {
+      "name": "discrete",
+      "center": [
+        12.0,
+        -4.0
+      ],
+      "config": {
+        "proportion": 1.0,
+        "size": [
+          4.0,
+          4.0
+        ],
+        "flat_patch_sampling": null,
+        "obstacle_height_mode": "choice",
+        "obstacle_width_range": [
+          0.4,
+          0.8
+        ],
+        "obstacle_height_range": [
+          0.10500000000000001,
+          0.315
+        ],
+        "num_obstacles": 10,
+        "platform_width": 1.2,
+        "horizontal_scale": 0.2,
+        "vertical_scale": 0.005,
+        "base_thickness_ratio": 1.0,
+        "border_width": 0.2,
+        "square_obstacles": false,
+        "origin_z_offset": 0.0
+      },
+      "origin": [
+        12.0,
+        -4.0,
+        0.0
+      ]
+    },
+    {
+      "name": "rough",
+      "center": [
+        0.0,
+        4.0
+      ],
+      "config": {
+        "proportion": 1.0,
+        "size": [
+          4.0,
+          4.0
+        ],
+        "flat_patch_sampling": null,
+        "noise_range": [
+          -0.21000000000000002,
+          0.21000000000000002
+        ],
+        "noise_step": 0.005,
+        "downsampled_scale": 0.2,
+        "horizontal_scale": 0.2,
+        "vertical_scale": 0.005,
+        "base_thickness_ratio": 1.0,
+        "border_width": 0.2,
+        "scale_with_difficulty": true,
+        "spawn_area_width": 0.8
+      },
+      "origin": [
+        0.0,
+        4.0,
+        0.205
+      ]
+    }
+  ],
+  "clear_landing_bounds": [
+    10.0,
+    14.0,
+    -2.0,
+    2.0
+  ]
+}

@@ -1,0 +1,4 @@
+mujoco==3.9.0
+numpy>=1.26,<3
+onnxruntime>=1.19,<2
+pynput>=1.7,<2

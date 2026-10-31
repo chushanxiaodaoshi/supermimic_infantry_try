@@ -21,4 +21,4 @@ validation:
   horizons: [1, 4, 8, 16]
   windows_per_source: 64
   constraint_samples: 32
-  mjcf_path: ${MJLAB_ROOT}/mujoco390/mjcf/scene.xml
+  mjcf_path: mujoco390/mjcf/scene.xml

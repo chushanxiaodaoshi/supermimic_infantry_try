@@ -167,7 +167,6 @@ mkdir -p data/infantry_usd
 unzip infantry_usd_package.zip -d data/infantry_usd
 
 test -f data/infantry_usd/Fudan-2026RoboMaster-Balance/Fudan-2026RoboMaster-Balance.usda
-export MJLAB_ROOT=/workspace
 
 /opt/isaaclab-venv/bin/python tools/collect_isaaclab_teacher.py \
   --config configs/infantry/collection/isaaclab_flat.yaml \

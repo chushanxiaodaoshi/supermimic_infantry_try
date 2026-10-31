@@ -42,7 +42,6 @@ World Model 权重，不加载旧优化器和训练步数；它在新混合数�
 云端命令：
 
 ```bash
-export MJLAB_ROOT=/path/to/mjlab
 python tools/train_world_model.py --config configs/infantry/world_model_debug.yaml
 python tools/train_world_model.py --config configs/infantry/world_model_cloud.yaml
 python tools/train_world_model.py \
