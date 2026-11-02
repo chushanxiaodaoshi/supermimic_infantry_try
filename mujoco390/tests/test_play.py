@@ -82,8 +82,9 @@ def test_standup_teacher_record_has_replay_contract_fields():
     observation = np.zeros(150, dtype=np.float32)
     action = np.zeros(6, dtype=np.float32)
     qpos, qvel = runtime.data.qpos.copy(), runtime.data.qvel.copy()
-    recorder.append(runtime, 1.0, qpos, qvel, observation, action)
-    recorder.append(runtime, 1.2, qpos, qvel, observation, action)
+    command = (0.0, 0.0, 0.2, True)
+    recorder.append(runtime, 1.0, qpos, qvel, observation, action, command)
+    recorder.append(runtime, 1.2, qpos, qvel, observation, action, command)
     assert recorder.completed and output.is_file()
     with np.load(output) as trajectory:
       assert trajectory["success"]
@@ -92,7 +93,49 @@ def test_standup_teacher_record_has_replay_contract_fields():
       assert trajectory["observation"].shape == (2, 150)
       assert trajectory["action"].shape == (2, 6)
       assert trajectory["applied_control"].shape == (2, 8)
+      assert trajectory["command"].shape == (2, 3)
+      assert trajectory["torque_enabled"].tolist() == [1.0, 1.0]
       assert trajectory["initial_joint_names"].shape == (14,)
+
+
+def test_randomized_standup_teacher_uses_reproducible_one_second_outages():
+  runtime = make_runtime()
+  PLAY.set_explicit_standup_initial_pose(runtime.model, runtime.data)
+  with TemporaryDirectory() as directory:
+    recorder = PLAY.StandupTeacherRecorder(
+      output=Path(directory) / "randomized_standup.npz",
+      disabled_duration=1.0,
+      stable_duration=0.2,
+      randomize=True,
+      seed=7,
+      command_interval=(1.0, 1.0),
+      disable_interval=(2.0, 2.0),
+      vx_range=(-0.5, 0.5),
+      yaw_range=(-1.0, 1.0),
+      height_range=(0.18, 0.22),
+    )
+    observation = np.zeros(150, dtype=np.float32)
+    action = np.zeros(6, dtype=np.float32)
+    qpos, qvel = runtime.data.qpos.copy(), runtime.data.qvel.copy()
+    assert recorder.torque_enabled(1.0)
+    command = recorder.command(KeyboardStateStub(), 1.0, True)
+    recorder.append(runtime, 1.0, qpos, qvel, observation, action, command)
+    recorder.append(runtime, 1.2, qpos, qvel, observation, action, command)
+    assert recorder.first_stable_at == 1.2 and not recorder.completed
+
+    enabled = recorder.torque_enabled(1.21)
+    random_command = recorder.command(KeyboardStateStub(), 1.21, enabled)
+    assert -0.5 <= random_command[0] <= 0.5
+    assert -1.0 <= random_command[1] <= 1.0
+    assert 0.18 <= random_command[2] <= 0.22
+    assert recorder.torque_enabled(3.19)
+    assert not recorder.torque_enabled(3.20)
+    assert not recorder.torque_enabled(4.19)
+    assert recorder.torque_enabled(4.20)
+
+
+class KeyboardStateStub:
+  height = 0.2
 
 
 def test_rm_course_heights_collision_masks_and_gaps():

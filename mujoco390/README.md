@@ -133,6 +133,23 @@ python run_policy.py `
 `--standup-disabled-duration` 和 `--standup-stable-duration` 调整阶段时长；输出文件存在
 时程序拒绝覆盖。
 
+要在首次站稳后继续生成恢复数据，可增加 `--standup-randomize`。采集器会按 seed
+随机改变前进速度、偏航速度和机体高度，并在随机间隔后将六个策略执行器完整失能
+1秒，再恢复同一个 rough 策略。气弹簧在失能期间仍保持300 N。随机命令、使能状态、
+实际控制和随机化参数都会写入 NPZ，便于世界模型区分策略目标与真实控制输入。
+
+```powershell
+python run_policy.py `
+  --onnx ./onnx/rough.onnx `
+  --headless --duration 60 --no-debug `
+  --standup-teacher-output ./standup_recovery_seed7.npz `
+  --standup-randomize --standup-random-seed 7
+```
+
+默认每1～3秒更换命令、每3～8秒触发一次1秒失能，命令范围为前进速度
+`[-1, 1] m/s`、偏航速度 `[-2, 2] rad/s`、高度 `[0.15, 0.25] m`。这些范围和两个
+随机间隔均有对应命令行参数可调整；1秒失能时长固定，避免扰动短到没有可观测效果。
+
 GUI Control 监视实际电机力矩（N·m），不用于手动控制。
 腿电机硬限幅 ±28 N·m、轮子 ±4 N·m；气弹簧固定 300 N。
 PD 参数沿用 XML：默认腿 kp=15、kd=1，轮子速度反馈增益 0.1。

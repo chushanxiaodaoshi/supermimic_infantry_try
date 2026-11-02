@@ -82,6 +82,12 @@ STANDUP_INITIAL_JOINT_POSITIONS = {
 }
 STANDUP_DISABLED_DURATION_S = 1.0
 STANDUP_STABLE_DURATION_S = 0.20
+STANDUP_RANDOM_DISABLE_DURATION_S = 1.0
+STANDUP_RANDOM_COMMAND_INTERVAL_S = (1.0, 3.0)
+STANDUP_RANDOM_DISABLE_INTERVAL_S = (3.0, 8.0)
+STANDUP_RANDOM_VX_RANGE = (-1.0, 1.0)
+STANDUP_RANDOM_YAW_RANGE = (-2.0, 2.0)
+STANDUP_RANDOM_HEIGHT_RANGE = (0.15, 0.25)
 
 jump_onnx = "./onnx/jump.onnx"
 onnx = "./onnx/rough.onnx"
@@ -170,6 +176,50 @@ def parse_args() -> argparse.Namespace:
     type=float,
     default=STANDUP_STABLE_DURATION_S,
     help="Continuous stable time required to finish the stand-up trajectory.",
+  )
+  parser.add_argument(
+    "--standup-randomize",
+    action="store_true",
+    help=(
+      "After the first stable stand, keep collecting with random commands and "
+      "repeated one-second policy-actuator outages."
+    ),
+  )
+  parser.add_argument("--standup-random-seed", type=int, default=0)
+  parser.add_argument(
+    "--standup-random-command-interval",
+    type=float,
+    nargs=2,
+    default=STANDUP_RANDOM_COMMAND_INTERVAL_S,
+    metavar=("MIN", "MAX"),
+  )
+  parser.add_argument(
+    "--standup-random-disable-interval",
+    type=float,
+    nargs=2,
+    default=STANDUP_RANDOM_DISABLE_INTERVAL_S,
+    metavar=("MIN", "MAX"),
+  )
+  parser.add_argument(
+    "--standup-random-vx-range",
+    type=float,
+    nargs=2,
+    default=STANDUP_RANDOM_VX_RANGE,
+    metavar=("MIN", "MAX"),
+  )
+  parser.add_argument(
+    "--standup-random-yaw-range",
+    type=float,
+    nargs=2,
+    default=STANDUP_RANDOM_YAW_RANGE,
+    metavar=("MIN", "MAX"),
+  )
+  parser.add_argument(
+    "--standup-random-height-range",
+    type=float,
+    nargs=2,
+    default=STANDUP_RANDOM_HEIGHT_RANGE,
+    metavar=("MIN", "MAX"),
   )
   parser.add_argument(
     "--debug",
@@ -685,15 +735,30 @@ class WheellegRuntime:
 
 @dataclass
 class StandupTeacherRecorder:
-  """Record disabled settling followed by rough-policy stand-up."""
+  """Record stand-up, then optional randomized rough recovery data."""
 
   output: Path
   disabled_duration: float
   stable_duration: float
+  randomize: bool = False
+  seed: int = 0
+  command_interval: tuple[float, float] = STANDUP_RANDOM_COMMAND_INTERVAL_S
+  disable_interval: tuple[float, float] = STANDUP_RANDOM_DISABLE_INTERVAL_S
+  vx_range: tuple[float, float] = STANDUP_RANDOM_VX_RANGE
+  yaw_range: tuple[float, float] = STANDUP_RANDOM_YAW_RANGE
+  height_range: tuple[float, float] = STANDUP_RANDOM_HEIGHT_RANGE
   enabled_at: float | None = None
   stable_since: float | None = None
+  first_stable_at: float | None = None
+  next_command_at: float | None = None
+  next_disable_at: float | None = None
+  disable_until: float | None = None
+  current_command: np.ndarray = field(
+    default_factory=lambda: np.array((0.0, 0.0, 0.2))
+  )
   completed: bool = False
   saved: bool = False
+  rng: np.random.Generator = field(init=False, repr=False)
   rows: dict[str, list[np.ndarray | float]] = field(
     default_factory=lambda: {
       "timestamp": [],
@@ -705,8 +770,16 @@ class StandupTeacherRecorder:
       "next_qpos": [],
       "next_qvel": [],
       "actuator_force": [],
+      "command": [],
+      "torque_enabled": [],
     }
   )
+
+  def __post_init__(self) -> None:
+    self.rng = np.random.default_rng(self.seed)
+
+  def _uniform(self, bounds: tuple[float, float]) -> float:
+    return float(self.rng.uniform(*bounds))
 
   def torque_enabled(self, elapsed: float) -> bool:
     if self.enabled_at is None and elapsed >= self.disabled_duration - 1e-9:
@@ -715,10 +788,44 @@ class StandupTeacherRecorder:
         "[standup teacher] rough control enabled after "
         f"{elapsed:.3f}s disabled settling"
       )
-    return self.enabled_at is not None
+    if self.enabled_at is None:
+      return False
+    if not self.randomize or self.first_stable_at is None:
+      return True
+    if self.disable_until is not None:
+      if elapsed < self.disable_until - 1e-9:
+        return False
+      self.disable_until = None
+      self.next_disable_at = elapsed + self._uniform(self.disable_interval)
+      print("[standup teacher] rough control restored after 1.000s outage")
+    if self.next_disable_at is not None and elapsed >= self.next_disable_at - 1e-9:
+      self.disable_until = elapsed + STANDUP_RANDOM_DISABLE_DURATION_S
+      print("[standup teacher] policy actuators disabled for 1.000s")
+      return False
+    return True
 
-  def command(self, controls: KeyboardState) -> tuple[float, float, float, bool]:
-    return 0.0, 0.0, controls.height, self.enabled_at is not None
+  def command(
+    self,
+    controls: KeyboardState,
+    elapsed: float,
+    torque_enabled: bool,
+  ) -> tuple[float, float, float, bool]:
+    if not self.randomize or self.first_stable_at is None:
+      self.current_command[:] = (0.0, 0.0, controls.height)
+    elif self.next_command_at is not None and elapsed >= self.next_command_at - 1e-9:
+      self.current_command[:] = (
+        self._uniform(self.vx_range),
+        self._uniform(self.yaw_range),
+        self._uniform(self.height_range),
+      )
+      self.next_command_at = elapsed + self._uniform(self.command_interval)
+      print(
+        "[standup teacher] random command "
+        f"vx={self.current_command[0]:+.2f}m/s, "
+        f"yaw={self.current_command[1]:+.2f}rad/s, "
+        f"height={self.current_command[2]:.2f}m"
+      )
+    return (*self.current_command, torque_enabled)
 
   def is_stable(self, runtime: WheellegRuntime) -> bool:
     rotation = runtime.data.xmat[runtime.base_id].reshape(3, 3)
@@ -738,6 +845,7 @@ class StandupTeacherRecorder:
     qvel: np.ndarray,
     observation: np.ndarray,
     action: np.ndarray,
+    command: tuple[float, float, float, bool],
   ) -> None:
     if self.enabled_at is None or self.completed:
       return
@@ -759,19 +867,31 @@ class StandupTeacherRecorder:
       "actuator_force": runtime.data.actuator_force[
         runtime.policy_actuator_ids
       ].copy(),
+      "command": np.asarray(command[:3]),
+      "torque_enabled": float(command[3]),
     }
     for name, value in values.items():
       self.rows[name].append(value)
     if self.is_stable(runtime):
       if self.stable_since is None:
         self.stable_since = timestamp
-      elif timestamp - self.stable_since >= self.stable_duration - 1e-9:
-        self.completed = True
-        self.save(success=True)
+      elif (
+        self.first_stable_at is None
+        and timestamp - self.stable_since >= self.stable_duration - 1e-9
+      ):
+        self.first_stable_at = timestamp
         print(
           "[standup teacher] stable standing reached in "
-          f"{timestamp - self.enabled_at:.3f}s; trajectory={self.output.resolve()}"
+          f"{timestamp - self.enabled_at:.3f}s"
         )
+        if self.randomize:
+          self.next_command_at = timestamp
+          self.next_disable_at = timestamp + self._uniform(self.disable_interval)
+          print("[standup teacher] randomized command/outage collection started")
+        else:
+          self.completed = True
+          self.save(success=True)
+          print(f"[standup teacher] trajectory={self.output.resolve()}")
     else:
       self.stable_since = None
 
@@ -792,6 +912,19 @@ class StandupTeacherRecorder:
         "success": np.asarray(success),
         "disabled_duration": np.asarray(self.disabled_duration),
         "stable_duration": np.asarray(self.stable_duration),
+        "randomized_collection": np.asarray(self.randomize),
+        "random_seed": np.asarray(self.seed),
+        "random_disable_duration": np.asarray(
+          STANDUP_RANDOM_DISABLE_DURATION_S
+        ),
+        "random_command_interval": np.asarray(self.command_interval),
+        "random_disable_interval": np.asarray(self.disable_interval),
+        "random_vx_range": np.asarray(self.vx_range),
+        "random_yaw_range": np.asarray(self.yaw_range),
+        "random_height_range": np.asarray(self.height_range),
+        "first_stable_timestamp": np.asarray(
+          np.nan if self.first_stable_at is None else self.first_stable_at
+        ),
         "policy_action_names": np.asarray(ACTION_TARGETS),
         "applied_control_names": np.asarray(
           (*ACTION_TARGETS, "Left_gas_spring_tendon", "Right_gas_spring_tendon")
@@ -834,8 +967,8 @@ def run_loop(
       command = controls.command(control_dt)
       jump_requested = controls.consume_jump_request()
     else:
-      standup_teacher.torque_enabled(elapsed)
-      command = standup_teacher.command(controls)
+      torque_enabled = standup_teacher.torque_enabled(elapsed)
+      command = standup_teacher.command(controls, elapsed, torque_enabled)
       jump_requested = False
     qpos = data.qpos.copy()
     qvel = data.qvel.copy()
@@ -856,6 +989,7 @@ def run_loop(
         qvel,
         observation,
         action,
+        command,
       )
     if not np.isfinite(data.qpos).all() or not np.isfinite(data.qvel).all():
       raise RuntimeError("MuJoCo state contains NaN/Inf; stopping playback")
@@ -866,7 +1000,7 @@ def run_loop(
         time.sleep(remaining)
   print(f"[play] simulated {data.time - start_time:.2f}s; max |torque|={max_torque}")
   if standup_teacher is not None and not standup_teacher.saved:
-    standup_teacher.save(success=standup_teacher.completed)
+    standup_teacher.save(success=standup_teacher.first_stable_at is not None)
   return max_torque
 
 
@@ -884,6 +1018,15 @@ def main() -> None:
     raise ValueError("--headless requires --duration with a positive value")
   if args.standup_teacher_output is not None and args.state is not None:
     raise ValueError("--standup-teacher-output uses its explicit pose, not --state")
+  if args.standup_randomize and args.standup_teacher_output is None:
+    raise ValueError("--standup-randomize requires --standup-teacher-output")
+  if (
+    args.standup_teacher_output is not None
+    and args.standup_teacher_output.exists()
+  ):
+    raise FileExistsError(
+      f"refusing to overwrite trajectory: {args.standup_teacher_output}"
+    )
   if (
     args.headless
     and args.standup_teacher_output is not None
@@ -894,6 +1037,24 @@ def main() -> None:
   height_range = tuple(args.height_range)
   if height_range[0] > height_range[1]:
     raise ValueError("Height range must be in ascending order")
+  random_ranges = {
+    "command interval": tuple(args.standup_random_command_interval),
+    "disable interval": tuple(args.standup_random_disable_interval),
+    "vx": tuple(args.standup_random_vx_range),
+    "yaw": tuple(args.standup_random_yaw_range),
+    "height": tuple(args.standup_random_height_range),
+  }
+  for name, bounds in random_ranges.items():
+    if not np.isfinite(bounds).all():
+      raise ValueError(f"Stand-up random {name} range must be finite")
+    if bounds[0] > bounds[1]:
+      raise ValueError(f"Stand-up random {name} range must be ascending")
+  minimum_interval = min(
+    *random_ranges["command interval"],
+    *random_ranges["disable interval"],
+  )
+  if minimum_interval <= 0:
+    raise ValueError("Stand-up random intervals must be positive")
   for path in (args.xml, args.onnx):
     if not path.is_file():
       raise FileNotFoundError(path)
@@ -933,6 +1094,13 @@ def main() -> None:
       output=args.standup_teacher_output,
       disabled_duration=args.standup_disabled_duration,
       stable_duration=args.standup_stable_duration,
+      randomize=args.standup_randomize,
+      seed=args.standup_random_seed,
+      command_interval=random_ranges["command interval"],
+      disable_interval=random_ranges["disable interval"],
+      vx_range=random_ranges["vx"],
+      yaw_range=random_ranges["yaw"],
+      height_range=random_ranges["height"],
     )
     print(
       "[standup teacher] explicit legs-behind reset; policy actuators disabled, "
