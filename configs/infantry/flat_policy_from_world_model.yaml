@@ -47,6 +47,11 @@ training:
   # Keep imagined controls/states near the World Model training distribution.
   # This is a policy regularizer, not part of the migrated task reward.
   support_penalty_weight: 0.001
+  # Penalize actions whose normalized transition predictions disagree across
+  # the shadow dynamics, and stop credit beyond the learned support boundary.
+  uncertainty_penalty_weight: 1.0
+  uncertainty_threshold: 0.15
+  uncertainty_temperature: 0.03
 
 reward:
   # The active joints in the replay MJCF are effectively unbounded. These

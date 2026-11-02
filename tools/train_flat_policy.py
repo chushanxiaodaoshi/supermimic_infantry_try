@@ -226,6 +226,9 @@ def resume_signature(cfg: dict[str, Any]) -> dict[str, Any]:
                 "gae_lambda",
                 "max_grad_norm",
                 "support_penalty_weight",
+                "uncertainty_penalty_weight",
+                "uncertainty_threshold",
+                "uncertainty_temperature",
             )
         },
         "seed": cfg["seed"],
@@ -242,6 +245,31 @@ def critic_bootstrap_weight(iteration: int, warmup: int, ramp: int) -> float:
     if ramp == 0:
         return 1.0
     return min((completed - warmup) / ramp, 1.0)
+
+
+def conservative_termination(model: WorldModel, state: TensorState) -> torch.Tensor:
+    """Combine the physical fall rule with the learned real termination boundary."""
+    physical = soft_termination(state)
+    if not model.has_termination_head:
+        return physical
+    return torch.maximum(physical, model.termination_probability(state))
+
+
+def epistemic_trust(
+    model: WorldModel,
+    state: TensorState,
+    control: torch.Tensor,
+    context: torch.Tensor,
+    *,
+    threshold: float,
+    temperature: float,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Return smooth rollout trust and normalized ensemble disagreement."""
+    disagreement = model.ensemble_disagreement(state, control, context)
+    if model.ensemble_size == 1:
+        return torch.ones_like(disagreement), disagreement
+    trust = torch.sigmoid((threshold - disagreement) / temperature)
+    return trust, disagreement
 
 
 def initialize_actor_from_checkpoint(
@@ -440,6 +468,17 @@ def main() -> None:
     gamma = float(training.get("gamma", 0.99))
     gae_lambda = float(training.get("gae_lambda", 0.95))
     max_grad_norm = float(training.get("max_grad_norm", 1.0))
+    uncertainty_weight = float(training.get("uncertainty_penalty_weight", 0.0))
+    uncertainty_threshold = float(training.get("uncertainty_threshold", 0.15))
+    uncertainty_temperature = float(training.get("uncertainty_temperature", 0.03))
+    if (
+        uncertainty_weight < 0.0
+        or uncertainty_threshold <= 0.0
+        or uncertainty_temperature <= 0.0
+    ):
+        raise ValueError(
+            "uncertainty penalty must be non-negative and trust parameters positive"
+        )
     iterations = int(training["iterations"])
     critic_enabled = bool(critic_cfg.get("enabled", True))
     if not critic_enabled and critic_bootstrap_weight(
@@ -475,6 +514,8 @@ def main() -> None:
         dones: list[torch.Tensor] = []
         critic_inputs: list[torch.Tensor] = []
         support_values: list[torch.Tensor] = []
+        disagreement_values: list[torch.Tensor] = []
+        trust_values: list[torch.Tensor] = []
         action_values: list[torch.Tensor] = []
 
         with freeze_parameters(critic):
@@ -488,6 +529,14 @@ def main() -> None:
                     *contract.action_clip
                 )
                 control = compose_world_model_control(action, context, contract)
+                trust, disagreement = epistemic_trust(
+                    model,
+                    state,
+                    control,
+                    context,
+                    threshold=uncertainty_threshold,
+                    temperature=uncertainty_temperature,
+                )
                 next_state = model.step(state, control, context)
                 reward, _ = flat_reward(
                     state,
@@ -502,22 +551,31 @@ def main() -> None:
                     joint_upper=joint_upper,
                     weights=weights,
                 )
-                done = soft_termination(next_state)
+                done = conservative_termination(model, next_state)
                 normalized_input = model.in_norm(model.inputs(state, control, context))
                 support = normalized_input.square().mean(dim=-1)
                 support_weight = float(training.get("support_penalty_weight", 0.0))
                 reward = reward - support_weight * support
-                objective = objective + discount * alive * reward
-                alive = alive * (1.0 - done).clamp(0.0, 1.0)
+                # Trust only gates imagined task return. Detaching it prevents an
+                # Actor from deliberately seeking uncertainty to hide a negative
+                # reward; the explicit disagreement cost supplies the gradient.
+                trusted = trust.detach()
+                effective_reward = (
+                    trusted * reward - uncertainty_weight * disagreement
+                )
+                objective = objective + discount * alive * effective_reward
+                alive = alive * trusted * (1.0 - done).clamp(0.0, 1.0)
                 observation = actor_observation(next_state, command, action)
                 history = torch.cat((history[:, 1:], observation.unsqueeze(1)), dim=1)
                 previous_previous_action = previous_action
                 previous_action = action
                 state = next_state
                 discount *= gamma
-                rewards.append(reward)
-                dones.append(done)
+                rewards.append(effective_reward)
+                dones.append(1.0 - trusted * (1.0 - done))
                 support_values.append(support)
+                disagreement_values.append(disagreement)
+                trust_values.append(trusted)
                 action_values.append(action)
             final_critic_input = None
             if critic_enabled or bootstrap_weight > 0.0:
@@ -596,6 +654,10 @@ def main() -> None:
                 "survival": float(alive.mean().detach()),
                 "mean_abs_action": float(torch.stack(action_values).abs().mean().detach()),
                 "wm_input_rms": float(torch.stack(support_values).mean().sqrt().detach()),
+                "wm_ensemble_disagreement": float(
+                    torch.stack(disagreement_values).mean().detach()
+                ),
+                "wm_trust": float(torch.stack(trust_values).mean().detach()),
                 "actor_grad_norm": float(actor_grad.detach()),
                 "critic_grad_norm": (
                     None if critic_grad is None else float(critic_grad.detach())

@@ -195,6 +195,44 @@ def test_critic_bootstrap_schedule_delays_actor_bootstrap() -> None:
     assert train_flat_policy.critic_bootstrap_weight(100, 0, 0) == 1.0
 
 
+def test_epistemic_trust_and_learned_termination_bound_imagination() -> None:
+    torch.manual_seed(19)
+    model = WorldModel(
+        INFANTRY_SPEC,
+        hidden=(16,),
+        zero_init_output=False,
+        ensemble_size=3,
+        termination_head=True,
+        termination_hidden=(8,),
+    )
+    model.initialize_shadows_from_primary(noise_std=0.02)
+    flat_state = torch.zeros(4, INFANTRY_SPEC.state_dim)
+    flat_state[:, 2] = 0.3
+    flat_state[:, 3] = 1.0
+    state = model.codec.unflatten(flat_state)
+    control = torch.randn(4, INFANTRY_SPEC.control_dim, requires_grad=True)
+    context = torch.zeros(4, INFANTRY_SPEC.context_dim)
+    trust, disagreement = train_flat_policy.epistemic_trust(
+        model,
+        state,
+        control,
+        context,
+        threshold=0.15,
+        temperature=0.03,
+    )
+    assert trust.shape == disagreement.shape == (4,)
+    assert ((trust > 0.0) & (trust < 1.0)).all()
+    assert (disagreement > 0.0).all()
+    disagreement.mean().backward()
+    assert control.grad is not None
+    assert torch.isfinite(control.grad).all()
+
+    physical = train_flat_policy.soft_termination(state)
+    conservative = train_flat_policy.conservative_termination(model, state)
+    assert (conservative >= physical).all()
+    assert (conservative >= model.termination_probability(state)).all()
+
+
 def test_evaluation_asset_config_resolves_relative_paths(tmp_path) -> None:
     config_dir = tmp_path / "configs"
     asset_dir = tmp_path / "assets"

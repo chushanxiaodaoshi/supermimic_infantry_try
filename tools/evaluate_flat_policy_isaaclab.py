@@ -24,11 +24,10 @@ from supermimic.infantry.flat_mdp import (
     bounded_policy_action,
     compose_world_model_control,
     flat_reward,
-    soft_termination,
 )
 from supermimic.infantry.replay_contract import ReplayContract, extract_mjcf_physics
 from supermimic.infantry.spec import INFANTRY_SPEC
-from tools.train_flat_policy import load_world_model
+from tools.train_flat_policy import conservative_termination, load_world_model
 
 
 def make_parser() -> argparse.ArgumentParser:
@@ -113,7 +112,9 @@ def imagined_survival(
         )
         control = compose_world_model_control(action, context, contract)
         state = world_model.step(state, control, context)
-        alive = alive * (1.0 - soft_termination(state)).clamp(0.0, 1.0)
+        alive = alive * (1.0 - conservative_termination(world_model, state)).clamp(
+            0.0, 1.0
+        )
         observation = actor_observation(state, command, action)
         history = torch.cat((history[:, 1:], observation.unsqueeze(1)), dim=1)
     return alive
