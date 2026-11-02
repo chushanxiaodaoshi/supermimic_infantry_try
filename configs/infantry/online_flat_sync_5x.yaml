@@ -11,16 +11,26 @@ initial_actor: null
 teacher_datasets:
   - name: flat_teacher
     path: data/teacher_isaaclab_flat_final_05
-    weight: 3.0
+    weight: 1.0
+
+# Teacher data bootstraps known locomotion, but current-Actor interaction owns
+# the replay distribution. Old Actor cycles age out instead of accumulating.
+replay:
+  teacher_anchor_scale: 0.25
+  recent_actor_cycles: 3
+  actor_weight: 1.0
+  actor_recency_decay: 0.7
 
 student_collection:
   steps: 2000
   max_episode_steps: 1000
   chunk_steps: 128
   split_seed: 2026
-  action_noise_std: 0.0
-  world_model_weight: 1.0
-  actor_start_weight: 1.0
+  # Normalized-action residual, held for 0.1 s to excite coherent dynamics.
+  action_noise_std: 0.1
+  action_noise_hold_steps: 10
+  # Match SuperMimic's five-second velocity-command resampling cadence.
+  command_resample_steps: 500
 
 world_model:
   hidden: [512, 512]

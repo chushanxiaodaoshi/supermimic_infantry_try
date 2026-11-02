@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import random
 import subprocess
 import sys
@@ -43,6 +42,18 @@ def make_parser(with_launcher: bool = False) -> argparse.ArgumentParser:
     parser.add_argument("--chunk-steps", type=int, default=128)
     parser.add_argument("--split-seed", type=int, default=2026)
     parser.add_argument("--action-noise-std", type=float, default=0.0)
+    parser.add_argument(
+        "--action-noise-hold-steps",
+        type=int,
+        default=1,
+        help="Hold one sampled action residual for this many control steps.",
+    )
+    parser.add_argument(
+        "--command-resample-steps",
+        type=int,
+        default=0,
+        help="Resample commands without reset every N steps; zero disables it.",
+    )
     if with_launcher:
         from isaaclab.app import add_launcher_args
 
@@ -51,13 +62,20 @@ def make_parser(with_launcher: bool = False) -> argparse.ArgumentParser:
 
 
 def validate_args(args: argparse.Namespace) -> None:
-    for name in ("steps", "max_episode_steps", "chunk_steps"):
+    for name in (
+        "steps",
+        "max_episode_steps",
+        "chunk_steps",
+        "action_noise_hold_steps",
+    ):
         if int(getattr(args, name)) <= 0:
             raise ValueError(f"--{name.replace('_', '-')} must be positive")
     if args.seed < 0 or args.split_seed < 0:
         raise ValueError("seeds must be non-negative")
     if args.action_noise_std < 0.0:
         raise ValueError("--action-noise-std must be non-negative")
+    if args.command_resample_steps < 0:
+        raise ValueError("--command-resample-steps must be non-negative")
 
 
 def git_commit() -> str:
@@ -145,8 +163,11 @@ def collect(args: argparse.Namespace, config: dict[str, Any]) -> None:
             "replay_contract": contract.to_dict(),
             "asset": physics,
             "randomization": (
-                "disabled; sampled command and executed action are recorded; "
-                f"action_noise_std={args.action_noise_std}"
+                "physics_domain_randomization=disabled; sampled command and "
+                "executed action are recorded; "
+                f"action_noise_std={args.action_noise_std}; "
+                f"action_noise_hold_steps={args.action_noise_hold_steps}; "
+                f"command_resample_steps={args.command_resample_steps}"
             ),
             "collection": {
                 "steps": args.steps,
@@ -155,6 +176,8 @@ def collect(args: argparse.Namespace, config: dict[str, Any]) -> None:
                 "seed": args.seed,
                 "split_seed": args.split_seed,
                 "action_noise_std": args.action_noise_std,
+                "action_noise_hold_steps": args.action_noise_hold_steps,
+                "command_resample_steps": args.command_resample_steps,
                 "command_ranges": command_ranges,
             },
             "reward_usage": "diagnostic_only_not_world_model_loss",
@@ -167,21 +190,37 @@ def collect(args: argparse.Namespace, config: dict[str, Any]) -> None:
             metadata=metadata,
         )
         noise_rng = torch.Generator(device=device).manual_seed(args.seed + 1_000_003)
+        exploration_residual = torch.zeros(
+            1, INFANTRY_SPEC.policy_action_dim, device=device
+        )
+        refresh_residual = True
         started = time.perf_counter()
         try:
             with torch.inference_mode():
-                for _ in range(args.steps):
+                for step_index in range(args.steps):
+                    if args.command_resample_steps:
+                        resample_ids = (
+                            (env.steps > 0)
+                            & (env.steps % args.command_resample_steps == 0)
+                        ).nonzero(as_tuple=False).flatten()
+                        env.resample_commands(resample_ids)
                     current, history, _ = env.observation()
                     student_action = bounded_policy_action(
                         actor(history), action_limit
                     ).clamp(*contract.action_clip)
                     executed_action = student_action
                     if args.action_noise_std:
-                        executed_action = executed_action + args.action_noise_std * torch.randn(
-                            executed_action.shape,
-                            device=device,
-                            generator=noise_rng,
-                        )
+                        if (
+                            refresh_residual
+                            or step_index % args.action_noise_hold_steps == 0
+                        ):
+                            exploration_residual.normal_(
+                                mean=0.0,
+                                std=args.action_noise_std,
+                                generator=noise_rng,
+                            )
+                            refresh_residual = False
+                        executed_action = executed_action + exploration_residual
                     transition = env.step(executed_action, current, history)
                     state = env.codec.unflatten(transition["state"])
                     next_state = env.codec.unflatten(transition["next_state"])
@@ -216,6 +255,7 @@ def collect(args: argparse.Namespace, config: dict[str, Any]) -> None:
                         transition
                         | {
                             "student_action": student_action,
+                            "exploration_residual": exploration_residual.clone(),
                             "reward": reward,
                             "terminated": terminated,
                             "dt": torch.full(
@@ -236,6 +276,7 @@ def collect(args: argparse.Namespace, config: dict[str, Any]) -> None:
                     if len(done_ids):
                         env.episodes[done_ids] += 1
                         env.reset(done_ids)
+                        refresh_residual = True
         finally:
             duration = time.perf_counter() - started
             metadata["collection_runtime"] = {

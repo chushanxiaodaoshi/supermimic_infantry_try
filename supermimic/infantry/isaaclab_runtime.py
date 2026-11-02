@@ -9,6 +9,7 @@ tendon-control bridge.
 
 from __future__ import annotations
 
+import os
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -35,7 +36,6 @@ from supermimic.infantry.spec import (
     LOOP_EQUALITY_NAMES,
     POLICY_ACTION_NAMES,
 )
-import os
 
 
 def _short_labels(values) -> set[str]:
@@ -949,6 +949,19 @@ class InfantryCollectionSim:
             teacher_input,
         )
 
+    def resample_commands(self, env_ids: torch.Tensor) -> None:
+        """Sample new commands without resetting physical state or history."""
+        if len(env_ids) == 0:
+            return
+        for column, name in enumerate(("lin_vel_x", "ang_vel_z", "height")):
+            low, high = self.command_ranges[name]
+            sampled = torch.empty(
+                len(env_ids),
+                device=self.device,
+                dtype=self.command.dtype,
+            ).uniform_(float(low), float(high), generator=self.rng)
+            self.command[env_ids, column] = sampled
+
     def reset(
         self,
         env_ids: torch.Tensor,
@@ -1023,30 +1036,7 @@ class InfantryCollectionSim:
             env_ids=env_ids,
         )
 
-        for column, name in enumerate(
-            (
-                "lin_vel_x",
-                "ang_vel_z",
-                "height",
-            )
-        ):
-            low, high = (
-                self.command_ranges[name]
-            )
-
-            # Advanced indexing returns a copy, so calling uniform_() directly
-            # on self.command[env_ids, column] does not update self.command.
-            # Sample separately and assign it back explicitly.
-            sampled = torch.empty(
-                len(env_ids),
-                device=self.device,
-                dtype=self.command.dtype,
-            ).uniform_(
-                float(low),
-                float(high),
-                generator=self.rng,
-            )
-            self.command[env_ids, column] = sampled
+        self.resample_commands(env_ids)
 
         self.last_action[
             env_ids

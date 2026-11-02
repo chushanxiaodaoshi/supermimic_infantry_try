@@ -14,8 +14,8 @@ from typing import Any
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-import yaml
 import torch
+import yaml
 
 from supermimic.infantry.spec import INFANTRY_SPEC
 
@@ -51,6 +51,8 @@ def load_config(path: Path, args: argparse.Namespace) -> dict[str, Any]:
         _mapping(cfg.get(section), section)
     _mapping(cfg["world_model"].get("training"), "world_model.training")
     _mapping(cfg["world_model"].get("validation"), "world_model.validation")
+    replay = cfg.setdefault("replay", {})
+    _mapping(replay, "replay")
     teachers = cfg.get("teacher_datasets")
     if not isinstance(teachers, list) or not teachers:
         raise ValueError("teacher_datasets must be a non-empty list")
@@ -67,6 +69,16 @@ def load_config(path: Path, args: argparse.Namespace) -> dict[str, Any]:
             raise ValueError(f"{name} is required")
     if int(cfg.get("cycles", 1)) <= 0:
         raise ValueError("cycles must be positive")
+    if int(replay.get("recent_actor_cycles", 3)) <= 0:
+        raise ValueError("replay.recent_actor_cycles must be positive")
+    for name, default in (
+        ("teacher_anchor_scale", 0.25),
+        ("actor_weight", 1.0),
+        ("actor_recency_decay", 0.7),
+    ):
+        value = float(replay.get(name, default))
+        if value <= 0.0 or (name == "actor_recency_decay" and value > 1.0):
+            raise ValueError(f"replay.{name} is outside its valid range")
     return cfg
 
 
@@ -87,22 +99,45 @@ def cycle_layout(root: Path, index: int) -> dict[str, Path]:
     }
 
 
+def active_replay_sources(
+    cfg: dict[str, Any], student_datasets: list[Path]
+) -> list[dict[str, Any]]:
+    """Build a bounded, recency-weighted replay mixture for one Dyna cycle."""
+    replay = cfg.get("replay", {})
+    teacher_scale = float(replay.get("teacher_anchor_scale", 0.25))
+    sources = [
+        {
+            **copy.deepcopy(item),
+            "weight": float(item.get("weight", 1.0)) * teacher_scale,
+            "role": "teacher_anchor",
+        }
+        for item in cfg["teacher_datasets"]
+    ]
+    capacity = int(replay.get("recent_actor_cycles", 3))
+    recent = student_datasets[-capacity:]
+    first_index = len(student_datasets) - len(recent) + 1
+    actor_weight = float(replay.get("actor_weight", 1.0))
+    decay = float(replay.get("actor_recency_decay", 0.7))
+    newest_index = len(student_datasets)
+    sources.extend(
+        {
+            "name": f"actor_cycle_{index:04d}",
+            "path": str(path),
+            "weight": actor_weight * decay ** (newest_index - index),
+            "role": "current_actor_replay",
+        }
+        for index, path in enumerate(recent, start=first_index)
+    )
+    return sources
+
+
 def world_model_config(
     cfg: dict[str, Any],
     layout: dict[str, Path],
     student_datasets: list[Path],
     cycle_index: int,
 ) -> dict[str, Any]:
-    collection = cfg["student_collection"]
-    datasets = [copy.deepcopy(value) for value in cfg["teacher_datasets"]]
-    datasets.extend(
-        {
-            "name": f"student_cycle_{index:04d}",
-            "path": str(path),
-            "weight": float(collection.get("world_model_weight", 1.0)),
-        }
-        for index, path in enumerate(student_datasets, start=1)
-    )
+    datasets = active_replay_sources(cfg, student_datasets)
     wm = cfg["world_model"]
     return {
         "seed": int(cfg.get("seed", 42)) + cycle_index,
@@ -129,19 +164,7 @@ def actor_config(
     result = copy.deepcopy(result)
     result["output"] = str(layout["actor"])
     result["world_model"]["checkpoint"] = str(world_model_checkpoint)
-    result["datasets"] = [
-        copy.deepcopy(value) for value in cfg["teacher_datasets"]
-    ]
-    result["datasets"].extend(
-        {
-            "name": f"student_cycle_{index:04d}",
-            "path": str(path),
-            "weight": float(
-                cfg["student_collection"].get("actor_start_weight", 1.0)
-            ),
-        }
-        for index, path in enumerate(student_datasets, start=1)
-    )
+    result["datasets"] = active_replay_sources(cfg, student_datasets)
     training = result["training"]
     for name in ("iterations", "batch_size", "checkpoint_every", "log_every"):
         if name in actor_cfg:
@@ -187,6 +210,10 @@ def command_plan(
             str(int(collection.get("split_seed", 2026))),
             "--action-noise-std",
             str(float(collection.get("action_noise_std", 0.0))),
+            "--action-noise-hold-steps",
+            str(int(collection.get("action_noise_hold_steps", 1))),
+            "--command-resample-steps",
+            str(int(collection.get("command_resample_steps", 0))),
         ],
         [
             python,
@@ -430,6 +457,7 @@ def main() -> None:
             pi_cfg = actor_config(
                 cfg, layout, next_world_model, student_datasets
             )
+            active_sources = active_replay_sources(cfg, student_datasets)
             actor_iterations = int(pi_cfg["training"]["iterations"])
             next_actor = checkpoint_path(layout["actor"], actor_iterations)
             write_yaml(layout["world_model_config"], wm_cfg)
@@ -449,6 +477,7 @@ def main() -> None:
                 "world_model_checkpoint": str(next_world_model),
                 "actor_checkpoint": str(next_actor),
                 "evaluation": str(layout["evaluation"]),
+                "active_replay_sources": active_sources,
                 "commands": commands,
             }
             manifest["cycles"].append(row)
@@ -469,11 +498,8 @@ def main() -> None:
                     row["student_audit"] = audit_student_dataset(
                         layout["student"], actor_checkpoint
                     )
-                    teacher_paths = [
-                        resolve(item["path"]) for item in cfg["teacher_datasets"]
-                    ]
                     row["dataset_contract"] = validate_dataset_contracts(
-                        teacher_paths + student_datasets
+                        [resolve(item["path"]) for item in active_sources]
                     )
                     write_manifest(manifest_path, manifest)
                 elif stage == "evaluate":
@@ -483,7 +509,7 @@ def main() -> None:
                     row["summary"] = summarize_cycle(
                         layout,
                         [item["name"] for item in cfg["teacher_datasets"]],
-                        f"student_cycle_{cycle_index:04d}",
+                        f"actor_cycle_{cycle_index:04d}",
                     )
             row["status"] = "complete"
             actor_checkpoint = next_actor

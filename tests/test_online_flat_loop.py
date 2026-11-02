@@ -53,19 +53,26 @@ def _online_config(tmp_path: Path) -> tuple[Path, Path, Path]:
         "seed": 4,
         "device": "cpu",
         "output": str(tmp_path / "online"),
-        "cycles": 2,
+        "cycles": 4,
         "asset_config": "asset.yaml",
         "initial_actor": str(actor),
         "initial_world_model": str(world_model),
         "teacher_datasets": [
-            {"name": "teacher", "path": "teacher_data", "weight": 3.0}
+            {"name": "teacher", "path": "teacher_data", "weight": 1.0}
         ],
+        "replay": {
+            "teacher_anchor_scale": 0.25,
+            "recent_actor_cycles": 2,
+            "actor_weight": 1.0,
+            "actor_recency_decay": 0.5,
+        },
         "student_collection": {
             "steps": 40,
             "max_episode_steps": 10,
             "chunk_steps": 8,
-            "world_model_weight": 1.0,
-            "actor_start_weight": 2.0,
+            "action_noise_std": 0.1,
+            "action_noise_hold_steps": 10,
+            "command_resample_steps": 50,
         },
         "world_model": {
             "hidden": [16],
@@ -99,6 +106,8 @@ def test_student_collector_rejects_invalid_ranges() -> None:
         seed=0,
         split_seed=0,
         action_noise_std=0.0,
+        action_noise_hold_steps=1,
+        command_resample_steps=0,
     )
     with pytest.raises(ValueError, match="steps"):
         collect_isaaclab_student.validate_args(args)
@@ -108,7 +117,7 @@ def test_student_collector_rejects_invalid_ranges() -> None:
         collect_isaaclab_student.validate_args(args)
 
 
-def test_online_dry_run_builds_accumulating_mixtures(tmp_path, monkeypatch) -> None:
+def test_online_dry_run_builds_bounded_active_replay(tmp_path, monkeypatch) -> None:
     config_path, actor, _ = _online_config(tmp_path)
     monkeypatch.setattr(
         sys,
@@ -127,7 +136,7 @@ def test_online_dry_run_builds_accumulating_mixtures(tmp_path, monkeypatch) -> N
     root = tmp_path / "online"
     manifest = json.loads((root / "online_manifest.json").read_text(encoding="utf-8"))
     assert manifest["status"] == "planned"
-    assert len(manifest["cycles"]) == 2
+    assert len(manifest["cycles"]) == 4
     for index, row in enumerate(manifest["cycles"], start=1):
         assert len(row["commands"]) == 4
         assert row["commands"][3][row["commands"][3].index("--num-envs") + 1] == "1"
@@ -137,17 +146,29 @@ def test_online_dry_run_builds_accumulating_mixtures(tmp_path, monkeypatch) -> N
         policy = yaml.safe_load(
             (root / f"cycle_{index:04d}" / "actor.yaml").read_text()
         )
-        assert [item["name"] for item in wm["datasets"]] == [
+        first = max(1, index - 1)
+        expected = [
             "teacher",
-            *[f"student_cycle_{cycle:04d}" for cycle in range(1, index + 1)],
+            *[f"actor_cycle_{cycle:04d}" for cycle in range(first, index + 1)],
         ]
-        assert len(policy["datasets"]) == index + 1
+        assert [item["name"] for item in wm["datasets"]] == expected
+        assert [item["name"] for item in policy["datasets"]] == expected
+        assert wm["datasets"][0]["weight"] == pytest.approx(0.25)
+        assert wm["datasets"][-1]["weight"] == pytest.approx(1.0)
+        assert row["active_replay_sources"] == wm["datasets"]
         assert policy["actor"]["bptt_horizon"] == 32
         assert policy["critic"]["enabled"] is False
-        assert policy["world_model"]["checkpoint"].endswith(
-            f"cycle_{index:04d}/world_model/checkpoint_00000003.pt"
+        checkpoint = Path(policy["world_model"]["checkpoint"])
+        assert checkpoint.parts[-3:] == (
+            f"cycle_{index:04d}",
+            "world_model",
+            "checkpoint_00000003.pt",
         )
         assert row["actor_checkpoint"].endswith("checkpoint_00000005.pt")
+        collection_command = row["commands"][0]
+        assert collection_command[
+            collection_command.index("--action-noise-hold-steps") + 1
+        ] == "10"
 
 
 def test_online_actor_contract_rejects_critic(tmp_path) -> None:

@@ -1,15 +1,28 @@
 # Isaac/Newton 平地在线同步闭环
 
-第一版闭环按固定顺序同步执行：Student 在真实 Isaac Lab/Newton 单环境中采集，
-Teacher 与截至当前轮的全部 Student 数据混合更新 World Model，Actor 再通过冻结的
-World Model 做 32 步 reward-only 更新，最后在独立的真实单环境中评测。这里没有
-BC loss，也不会用 Student 动作作为 Actor 的监督标签。
+闭环按固定顺序同步执行：当前 Actor 在真实 Isaac Lab/Newton 中主动采集，有限容量
+的循环回放更新 World Model，Actor 再通过冻结的 World Model 更新，最后在独立真实
+仿真中评测。Teacher 数据只保留为低权重动力学锚点，不再作为主导训练分布。这里没有
+BC loss，也不会用 Actor 动作作为监督标签。
 
 `tools/collect_isaaclab_student.py` 在 reset 前写入终止 transition，并记录实际状态、
 实际控制、command、context、历史观测、Student 动作、episode/run id 和数据划分。
 每次采集必须使用新的或空目录。编排器在更新 World Model 前会比较 Teacher/Student
 的控制与动力学语义；文件迁移产生的路径和 SHA 变化不参与比较，关节、控制器、
 timestep、context、闭链和气弹簧等语义变化会直接终止运行。
+
+## 主动回放架构
+
+每轮采集执行的是当前 Actor 动作，并在归一化动作空间加入可复现的高斯残差；残差
+默认保持10个控制步（0.1秒），使扰动能够产生连续动力学响应，而不是逐帧相互抵消。
+命令默认每500步（5秒）在不 reset 物理状态的情况下重新采样。数据同时保存 Actor
+原始动作、探索残差、最终执行动作和8维实际控制。
+
+训练混合不再累计所有历史 Actor 数据。`replay.recent_actor_cycles` 限制活跃 Actor
+分片数量，最新分片权重最高，旧分片按 `actor_recency_decay` 衰减并最终退出活跃集合；
+Teacher 权重统一乘 `teacher_anchor_scale`。旧采集目录仍保留用于审计，但不会无限
+支配当前 World Model。该层是 Teacher-seeded Active Dyna 的数据基础，后续模型
+不确定性和自适应想象范围建立在同一个活跃回放契约上。
 
 小规模回归命令：
 
