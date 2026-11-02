@@ -18,7 +18,11 @@ import torch
 import yaml
 
 from supermimic.core.networks import UnifiedActor
-from supermimic.infantry.flat_mdp import FlatRewardWeights, flat_reward
+from supermimic.infantry.flat_mdp import (
+    FlatRewardWeights,
+    bounded_policy_action,
+    flat_reward,
+)
 from supermimic.infantry.replay_contract import ReplayContract, extract_mjcf_physics
 from supermimic.infantry.spec import INFANTRY_SPEC
 
@@ -96,6 +100,10 @@ def main() -> None:
     device = torch.device(config.get("collection", {}).get("device", "cuda:0"))
     torch.manual_seed(args.seed)
     actor, checkpoint = load_actor(args.checkpoint.expanduser().resolve(), device)
+    action_limit_value = checkpoint["config"]["actor"].get("output_limit")
+    action_limit = (
+        None if action_limit_value is None else float(action_limit_value)
+    )
     policy_reward = checkpoint["config"].get("reward", {})
     reward_weights = FlatRewardWeights(**policy_reward.get("weights", {}))
     joint_lower = torch.tensor(
@@ -146,7 +154,9 @@ def main() -> None:
         with torch.inference_mode():
             for _ in range(args.steps):
                 current, history, _ = env.observation()
-                action = actor(history).clamp(*contract.action_clip)
+                action = bounded_policy_action(
+                    actor(history), action_limit
+                ).clamp(*contract.action_clip)
                 transition = env.step(action, current, history)
                 state = env.codec.unflatten(transition["state"])
                 next_state = env.codec.unflatten(transition["next_state"])

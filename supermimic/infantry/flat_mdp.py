@@ -64,6 +64,17 @@ class FlatRewardWeights:
 DEFAULT_FLAT_REWARD_WEIGHTS = FlatRewardWeights()
 
 
+def bounded_policy_action(
+    raw_action: torch.Tensor, limit: float | None
+) -> torch.Tensor:
+    """Smoothly bound a policy action while preserving small-signal behavior."""
+    if limit is None:
+        return raw_action
+    if limit <= 0.0:
+        raise ValueError("policy action limit must be positive")
+    return torch.tanh(raw_action / limit) * limit
+
+
 def compose_world_model_control(
     action: torch.Tensor,
     context: torch.Tensor,
@@ -226,7 +237,7 @@ def flat_reward(
     joint_upper: torch.Tensor,
     weights: FlatRewardWeights = DEFAULT_FLAT_REWARD_WEIGHTS,
 ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
-    """Compute weighted, clipped reward exactly once per 10-ms control step."""
+    """Compute the weighted reward exactly once per 10-ms control step."""
     terms = flat_reward_terms(
         previous_state,
         state,
@@ -245,7 +256,7 @@ def flat_reward(
     ).sum(dim=-1)
     total = torch.zeros_like(next(iter(terms.values())))
     for name, value in terms.items():
-        total = total + getattr(weights, name) * value.clamp(max=1.0)
+        total = total + getattr(weights, name) * value
     return total * INFANTRY_SPEC.control_dt, terms
 
 

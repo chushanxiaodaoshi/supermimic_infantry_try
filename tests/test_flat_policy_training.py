@@ -84,9 +84,14 @@ def test_flat_policy_training_and_resume(tmp_path, monkeypatch) -> None:
             "hidden": [16],
             "history": 5,
             "bptt_horizon": 2,
+            "output_limit": 10.0,
             "normalizer_samples": 8,
         },
-        "critic": {"hidden": [16]},
+        "critic": {
+            "hidden": [16],
+            "bootstrap_warmup_iterations": 1,
+            "bootstrap_ramp_iterations": 1,
+        },
         "training": {
             "iterations": 1,
             "batch_size": 4,
@@ -147,6 +152,14 @@ def test_flat_policy_training_and_resume(tmp_path, monkeypatch) -> None:
     with torch.inference_mode():
         action = actor(torch.zeros(3, 5, INFANTRY_SPEC.actor_obs_dim))
     assert action.shape == (3, INFANTRY_SPEC.policy_action_dim)
+
+
+def test_critic_bootstrap_schedule_delays_actor_bootstrap() -> None:
+    assert train_flat_policy.critic_bootstrap_weight(0, 2, 2) == 0.0
+    assert train_flat_policy.critic_bootstrap_weight(1, 2, 2) == 0.0
+    assert train_flat_policy.critic_bootstrap_weight(2, 2, 2) == 0.5
+    assert train_flat_policy.critic_bootstrap_weight(3, 2, 2) == 1.0
+    assert train_flat_policy.critic_bootstrap_weight(100, 0, 0) == 1.0
 
 
 def test_evaluation_asset_config_resolves_relative_paths(tmp_path) -> None:

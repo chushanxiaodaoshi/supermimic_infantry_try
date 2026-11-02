@@ -27,6 +27,7 @@ from supermimic.data.dataset import ChunkDataset, DatasetSource, MixtureDataset
 from supermimic.infantry.flat_mdp import (
     FlatRewardWeights,
     actor_observation,
+    bounded_policy_action,
     compose_world_model_control,
     flat_reward,
     soft_termination,
@@ -213,6 +214,18 @@ def resume_signature(cfg: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def critic_bootstrap_weight(iteration: int, warmup: int, ramp: int) -> float:
+    """Delay and smoothly introduce the critic term into the Actor objective."""
+    if iteration < 0 or warmup < 0 or ramp < 0:
+        raise ValueError("critic bootstrap schedule values must be non-negative")
+    completed = iteration + 1
+    if completed <= warmup:
+        return 0.0
+    if ramp == 0:
+        return 1.0
+    return min((completed - warmup) / ramp, 1.0)
+
+
 def save_checkpoint(
     path: Path,
     *,
@@ -347,17 +360,35 @@ def main() -> None:
         cfg["reward"].get("joint_upper", [100.0] * 4), device=device
     )
     horizon = int(actor_cfg.get("bptt_horizon", 16))
+    action_limit_value = actor_cfg.get("output_limit")
+    action_limit = (
+        None if action_limit_value is None else float(action_limit_value)
+    )
+    if action_limit is not None and action_limit <= 0.0:
+        raise ValueError("actor.output_limit must be positive")
+    bootstrap_warmup = int(critic_cfg.get("bootstrap_warmup_iterations", 0))
+    bootstrap_ramp = int(critic_cfg.get("bootstrap_ramp_iterations", 0))
+    if bootstrap_warmup < 0 or bootstrap_ramp < 0:
+        raise ValueError("critic bootstrap schedule must be non-negative")
     batch_size = int(training.get("batch_size", 4096))
     gamma = float(training.get("gamma", 0.99))
     gae_lambda = float(training.get("gae_lambda", 0.95))
     max_grad_norm = float(training.get("max_grad_norm", 1.0))
     iterations = int(training["iterations"])
+    critic_enabled = bool(critic_cfg.get("enabled", True))
+    if not critic_enabled and critic_bootstrap_weight(
+        iterations - 1, bootstrap_warmup, bootstrap_ramp
+    ) > 0.0:
+        raise ValueError("disabled Critic cannot contribute an Actor bootstrap")
     checkpoint_every = int(training.get("checkpoint_every", 1000))
     log_every = int(training.get("log_every", 50))
     log_path = output / "train_log.jsonl"
     start_time = time.time() - elapsed_offset
 
     for iteration in range(start_iteration, iterations):
+        bootstrap_weight = critic_bootstrap_weight(
+            iteration, bootstrap_warmup, bootstrap_ramp
+        )
         batch = dataset.sample_windows(
             batch_size,
             1,
@@ -382,9 +413,14 @@ def main() -> None:
 
         with freeze_parameters(critic):
             for _ in range(horizon):
-                critic_inputs.append(critic_features(model, state, command, context))
+                if critic_enabled:
+                    critic_inputs.append(
+                        critic_features(model, state, command, context)
+                    )
                 raw_action = actor(history)
-                action = raw_action.clamp(*contract.action_clip)
+                action = bounded_policy_action(raw_action, action_limit).clamp(
+                    *contract.action_clip
+                )
                 control = compose_world_model_control(action, context, contract)
                 next_state = model.step(state, control, context)
                 reward, _ = flat_reward(
@@ -417,8 +453,19 @@ def main() -> None:
                 dones.append(done)
                 support_values.append(support)
                 action_values.append(action)
-            final_critic_input = critic_features(model, state, command, context)
-            objective = objective + discount * alive * critic(final_critic_input)
+            final_critic_input = None
+            if critic_enabled or bootstrap_weight > 0.0:
+                final_critic_input = critic_features(
+                    model, state, command, context
+                )
+            if bootstrap_weight > 0.0:
+                assert final_critic_input is not None
+                objective = objective + (
+                    bootstrap_weight
+                    * discount
+                    * alive
+                    * critic(final_critic_input)
+                )
             actor_loss = -objective.mean()
 
         if not torch.isfinite(actor_loss):
@@ -430,31 +477,45 @@ def main() -> None:
             raise FloatingPointError(f"non-finite actor gradient at iteration {iteration + 1}")
         actor_optimizer.step()
 
-        with torch.no_grad():
-            detached_inputs = [value.detach() for value in critic_inputs]
-            critic.norm.update(torch.cat(detached_inputs + [final_critic_input.detach()]))
-            values = [critic(value) for value in detached_inputs]
-            values.append(critic(final_critic_input.detach()))
-            target = values[-1]
-            targets: list[torch.Tensor] = []
-            for step in range(horizon - 1, -1, -1):
-                target = rewards[step].detach() + gamma * (1.0 - dones[step].detach()) * (
-                    (1.0 - gae_lambda) * values[step + 1]
-                    + gae_lambda * target
+        critic_loss: torch.Tensor | None = None
+        critic_grad: torch.Tensor | None = None
+        if critic_enabled:
+            assert final_critic_input is not None
+            with torch.no_grad():
+                detached_inputs = [value.detach() for value in critic_inputs]
+                critic.norm.update(
+                    torch.cat(detached_inputs + [final_critic_input.detach()])
                 )
-                targets.append(target)
-            targets.reverse()
-        critic_prediction = critic(torch.cat(detached_inputs))
-        critic_target = torch.cat(targets)
-        critic_loss = (critic_prediction - critic_target).square().mean()
-        if not torch.isfinite(critic_loss):
-            raise FloatingPointError(f"non-finite critic loss at iteration {iteration + 1}")
-        critic_optimizer.zero_grad(set_to_none=True)
-        critic_loss.backward()
-        critic_grad = nn.utils.clip_grad_norm_(critic.parameters(), max_grad_norm)
-        if not torch.isfinite(critic_grad):
-            raise FloatingPointError(f"non-finite critic gradient at iteration {iteration + 1}")
-        critic_optimizer.step()
+                values = [critic(value) for value in detached_inputs]
+                values.append(critic(final_critic_input.detach()))
+                target = values[-1]
+                targets: list[torch.Tensor] = []
+                for step in range(horizon - 1, -1, -1):
+                    target = rewards[step].detach() + gamma * (
+                        1.0 - dones[step].detach()
+                    ) * (
+                        (1.0 - gae_lambda) * values[step + 1]
+                        + gae_lambda * target
+                    )
+                    targets.append(target)
+                targets.reverse()
+            critic_prediction = critic(torch.cat(detached_inputs))
+            critic_target = torch.cat(targets)
+            critic_loss = (critic_prediction - critic_target).square().mean()
+            if not torch.isfinite(critic_loss):
+                raise FloatingPointError(
+                    f"non-finite critic loss at iteration {iteration + 1}"
+                )
+            critic_optimizer.zero_grad(set_to_none=True)
+            critic_loss.backward()
+            critic_grad = nn.utils.clip_grad_norm_(
+                critic.parameters(), max_grad_norm
+            )
+            if not torch.isfinite(critic_grad):
+                raise FloatingPointError(
+                    f"non-finite critic gradient at iteration {iteration + 1}"
+                )
+            critic_optimizer.step()
 
         if (iteration + 1) % log_every == 0 or iteration == start_iteration:
             elapsed = time.time() - start_time
@@ -462,13 +523,18 @@ def main() -> None:
                 "iteration": iteration + 1,
                 "elapsed_seconds": elapsed,
                 "actor_loss": float(actor_loss.detach()),
-                "critic_loss": float(critic_loss.detach()),
+                "critic_loss": (
+                    None if critic_loss is None else float(critic_loss.detach())
+                ),
                 "imagined_reward": float(torch.stack(rewards).mean().detach()),
                 "survival": float(alive.mean().detach()),
                 "mean_abs_action": float(torch.stack(action_values).abs().mean().detach()),
                 "wm_input_rms": float(torch.stack(support_values).mean().sqrt().detach()),
                 "actor_grad_norm": float(actor_grad.detach()),
-                "critic_grad_norm": float(critic_grad.detach()),
+                "critic_grad_norm": (
+                    None if critic_grad is None else float(critic_grad.detach())
+                ),
+                "critic_bootstrap_weight": bootstrap_weight,
                 "iterations_per_second": (iteration + 1 - start_iteration) / max(elapsed - elapsed_offset, 1.0e-6),
                 "gpu_peak_memory_bytes": torch.cuda.max_memory_allocated(device) if device.type == "cuda" else 0,
             }

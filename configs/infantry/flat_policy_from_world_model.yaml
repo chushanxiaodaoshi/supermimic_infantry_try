@@ -1,10 +1,10 @@
 seed: 42
 device: cuda:0
-output: logs/infantry_flat_policy
+output: logs/infantry_flat_policy_from_scratch_02
 
 world_model:
   # Override on the command line with --world-model /path/to/checkpoint.pt.
-  checkpoint: logs/infantry_world_model/checkpoint_00010000.pt
+  checkpoint: results/world_model_shared_02/checkpoint_00070000.pt
 
 controller:
   # Source of truth for action order, scaling, clipping and tendon target.
@@ -14,30 +14,39 @@ datasets:
   # These datasets provide initial states, observation histories, commands and
   # physics contexts. Only split=0 is sampled during policy optimization.
   - name: flat
-    path: data/teacher_isaaclab_flat
+    path: data/teacher_isaaclab_flat_final_05
     weight: 1.0
 
 actor:
   hidden: [512, 256, 128]
   history: 5
-  bptt_horizon: 16
+  # 32 steps cover the observed 20--23 step early-fall window while staying
+  # inside the independently evaluated World Model horizon.
+  bptt_horizon: 32
+  # Smooth limit; the flat Teacher's 99.9th action magnitude is below 10.
+  output_limit: 10.0
   normalizer_samples: 100000
 
 critic:
+  enabled: false
   hidden: [256, 128]
+  # The current Critic is trained and logged, but does not enter the Actor
+  # objective until a target-critic design is independently validated.
+  bootstrap_warmup_iterations: 100000
+  bootstrap_ramp_iterations: 0
 
 training:
   iterations: 100000
-  batch_size: 4096
+  batch_size: 2048
   learning_rate: 0.0002
   gamma: 0.99
   gae_lambda: 0.95
   max_grad_norm: 1.0
   checkpoint_every: 1000
   log_every: 50
-  # Keep zero for the exact migrated reward. wm_input_rms is still logged so
-  # model-support excursions remain visible during training.
-  support_penalty_weight: 0.0
+  # Keep imagined controls/states near the World Model training distribution.
+  # This is a policy regularizer, not part of the migrated task reward.
+  support_penalty_weight: 0.001
 
 reward:
   # The active joints in the replay MJCF are effectively unbounded. These

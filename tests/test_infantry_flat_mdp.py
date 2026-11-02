@@ -4,7 +4,9 @@ import torch
 
 from supermimic.core.spec import StateCodec
 from supermimic.infantry.flat_mdp import (
+    FlatRewardWeights,
     actor_observation,
+    bounded_policy_action,
     compose_world_model_control,
     estimated_actuator_force,
     flat_reward,
@@ -68,6 +70,15 @@ def test_tendons_are_context_physics_not_policy_actions() -> None:
     assert context.grad is None
 
 
+def test_policy_action_bound_is_smooth_and_differentiable() -> None:
+    raw = torch.tensor([[-100.0, -1.0, 0.0, 1.0, 10.0, 100.0]], requires_grad=True)
+    action = bounded_policy_action(raw, 10.0)
+    assert action.abs().max() <= 10.0
+    torch.testing.assert_close(action[:, 2], torch.zeros(1))
+    action.sum().backward()
+    assert raw.grad is not None and torch.isfinite(raw.grad).all()
+
+
 def test_observation_and_affine_actuator_force_match_contract() -> None:
     state = _state()
     observation = actor_observation(
@@ -117,6 +128,32 @@ def test_flat_reward_backpropagates_through_predicted_state_and_action() -> None
     (-reward.mean()).backward()
     assert current.grad is not None and torch.isfinite(current.grad).all()
     assert action.grad is not None and torch.isfinite(action.grad).all()
+
+
+def test_flat_reward_does_not_cap_large_penalty_terms() -> None:
+    weights = FlatRewardWeights(
+        **{
+            name: -1.0 if name == "action_rate" else 0.0
+            for name in FlatRewardWeights.__dataclass_fields__
+        }
+    )
+    action = torch.full((2, 6), 2.0)
+    state = _state()
+    reward, terms = flat_reward(
+        state,
+        state,
+        torch.zeros(2, 3),
+        action,
+        torch.zeros_like(action),
+        torch.zeros_like(action),
+        torch.zeros(2, 6),
+        _context(),
+        joint_lower=torch.full((4,), -100.0),
+        joint_upper=torch.full((4,), 100.0),
+        weights=weights,
+    )
+    torch.testing.assert_close(terms["action_rate"], torch.full((2,), 24.0))
+    torch.testing.assert_close(reward, torch.full((2,), -0.24))
 
 
 def test_soft_termination_separates_upright_and_fallen_states() -> None:

@@ -15,10 +15,19 @@ context。Teacher 动作不进入策略目标。当前入口不会继续更新 W
 
 Actor 始终输出六维动作：四个腿部位置控制和两个轮子速度控制。动作顺序、缩放与裁剪
 从 `mujoco390/run_policy.py` 读取，不另写一份控制器配置。
+默认策略配置还使用可微 `tanh` 将动作限制在 ±10；该范围覆盖当前 flat Teacher 数据
+99.9% 的动作幅值，并与 replay observation 中上一动作的 ±10 裁剪一致。Newton 评测
+从 checkpoint 配置读取同一限制，避免训练与部署动作变换不一致。
 
 已训练 World Model 保持原有八维输入兼容性。后两维气弹簧力从73维物理 context 复制并
 停止梯度，整个 imagined rollout 中保持固定。策略不能调节气弹簧，气弹簧仍属于机器人
 固有动力学。
+
+随机初始化的 Critic 不能直接作为可信的 Actor 目标。实测即使预热1000轮，少量
+bootstrap 也会诱导 Actor 利用 Critic 的分布外误差，Critic 自身的在线自举也会发散。
+因此当前10万轮配置只用32步解析 reward 更新 Actor，并关闭 Critic 更新；在
+target-critic 方案完成独立验证前，日志中的 `critic_loss` 为 null，
+`critic_bootstrap_weight` 应始终为0。
 
 ## 奖励
 
@@ -30,7 +39,8 @@ Actor 始终输出六维动作：四个腿部位置控制和两个轮子速度�
 - 关节速度、加速度、执行器力矩；
 - 动作变化率、腿动作二阶平滑和关节限位。
 
-关节加速度用连续预测速度差分计算。执行器力矩根据 context 中记录的 MuJoCo
+关节加速度用连续预测速度差分计算。各 reward term 按原值乘权重和控制周期，不对平方
+惩罚项做额外截断。执行器力矩根据 context 中记录的 MuJoCo
 `gain/bias/forcerange` 做解析仿射计算及裁剪，不增加神经网络预测头。底盘接触力无法从
 41维状态严格还原，imagined rollout 使用高度和倾角的可微软终止；真实仿真验收仍应
 使用后端接触终止。
@@ -43,7 +53,7 @@ checkpoint：
 ```bash
 python tools/train_flat_policy.py \
   --config configs/infantry/flat_policy_from_world_model.yaml \
-  --world-model /workspace/supermimic/logs/infantry_world_model/checkpoint_XXXXXXXX.pt \
+  --world-model /workspace/supermimic/results/world_model_shared_02/checkpoint_00070000.pt \
   --output /workspace/supermimic/logs/infantry_flat_policy_run01
 ```
 
@@ -69,6 +79,8 @@ python tools/train_flat_policy.py \
 日志中的 `imagined_reward` 上升只说明策略利用了当前 World Model。必须同时监控
 `wm_input_rms`；它明显持续增大表示策略正在离开模型训练分布。最终是否可用必须在独立
 Newton/MuJoCo-Warp 仿真中验证站立、速度跟踪、跌倒率及完整 mjlab reward。
+默认配置使用很小的模型支持正则抑制这种分布外逃逸；它不替代真实仿真验收，也不应
+被计入迁移的 flat task reward。
 
 ## Newton 独立评测
 
@@ -79,14 +91,16 @@ Actor 放回同一个 Isaac Lab 3/Newton/MuJoCo-Warp 环境：
 python tools/evaluate_flat_policy_isaaclab.py \
   --config configs/infantry/collection/isaaclab_flat.yaml \
   --checkpoint /workspace/supermimic/logs/infantry_flat_policy_run01/checkpoint_00001000.pt \
-  --num-envs 64 \
+  --num-envs 1 \
   --steps 10000 \
   --vx 1.0 \
   --yaw 0.0 \
   --height 0.13 \
-  --report /workspace/supermimic/logs/infantry_flat_policy_run01/eval_vx1.json \
-  --headless
+  --report /workspace/supermimic/logs/infantry_flat_policy_run01/eval_vx1.json
 ```
 
 报告给出真实后端上的速度跟踪 MAE、episode return、长度和跌倒比例。当前评测的跌倒
 判定包含后端低高度终止与60度倾斜；底盘接触力仍未被伪造为 World Model 输出。
+当前 Newton cloner 不会为多个环境复制原生 gas-spring tendon，因此评测固定使用
+`--num-envs 1`；运行时会在 tendon 缺失时明确报错，不会静默删除气弹簧。kit-less
+launcher 默认无窗口运行，不接受 `--headless` 参数。
