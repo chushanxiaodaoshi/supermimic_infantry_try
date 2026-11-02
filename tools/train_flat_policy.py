@@ -184,6 +184,35 @@ def _restore_rng(payload: dict[str, Any], dataset: MixtureDataset) -> None:
     dataset.set_rng_state(payload["dataset"])
 
 
+def resume_signature(cfg: dict[str, Any]) -> dict[str, Any]:
+    """Fields that define one policy optimization run.
+
+    Iteration and logging/checkpoint intervals are intentionally excluded so a
+    run can be extended without changing its learning problem.
+    """
+    training = cfg["training"]
+    return {
+        "world_model_sha256": cfg["world_model"]["sha256"],
+        "datasets": cfg["datasets"],
+        "controller_contract": cfg["controller"]["contract"],
+        "actor": cfg["actor"],
+        "critic": cfg["critic"],
+        "reward": cfg["reward"],
+        "training": {
+            key: training.get(key)
+            for key in (
+                "batch_size",
+                "learning_rate",
+                "gamma",
+                "gae_lambda",
+                "max_grad_norm",
+                "support_penalty_weight",
+            )
+        },
+        "seed": cfg["seed"],
+    }
+
+
 def save_checkpoint(
     path: Path,
     *,
@@ -212,6 +241,7 @@ def save_checkpoint(
             "path": str(world_model_path),
             "sha256": sha256_file(world_model_path),
         },
+        "resume_signature": resume_signature(cfg),
         "rng": _rng_payload(dataset),
     }
     temporary = path.with_suffix(path.suffix + ".tmp")
@@ -297,6 +327,10 @@ def main() -> None:
         expected_hash = payload["world_model"]["sha256"]
         if sha256_file(world_model_path) != expected_hash:
             raise ValueError("resume World Model differs from the original run")
+        if payload.get("resume_signature") != resume_signature(resolved_cfg):
+            raise ValueError(
+                "resume checkpoint is incompatible with the current policy config"
+            )
         actor.load_state_dict(payload["actor"], strict=True)
         critic.load_state_dict(payload["critic"], strict=True)
         actor_optimizer.load_state_dict(payload["actor_optimizer"])

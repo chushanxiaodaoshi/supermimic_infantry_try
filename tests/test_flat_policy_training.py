@@ -116,6 +116,9 @@ def test_flat_policy_training_and_resume(tmp_path, monkeypatch) -> None:
     assert payload["actor_optimizer"]["state"]
     assert payload["critic_optimizer"]["state"]
     assert payload["world_model"]["sha256"]
+    assert payload["resume_signature"] == train_flat_policy.resume_signature(
+        payload["config"]
+    )
 
     monkeypatch.setattr(
         sys,
