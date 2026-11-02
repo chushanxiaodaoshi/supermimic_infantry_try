@@ -10,7 +10,7 @@ import yaml
 from supermimic.core.networks import WorldModel
 from supermimic.data.chunks import ChunkWriter
 from supermimic.infantry.spec import INFANTRY_SPEC
-from tools import train_flat_policy
+from tools import evaluate_flat_policy_isaaclab, train_flat_policy
 
 
 def _write_replay(path: Path) -> None:
@@ -136,3 +136,40 @@ def test_flat_policy_training_and_resume(tmp_path, monkeypatch) -> None:
     )
     assert resumed["iteration"] == 2
     assert resumed["actor_optimizer"]["state"]
+
+    actor, actor_payload = evaluate_flat_policy_isaaclab.load_actor(
+        output / "checkpoint_00000002.pt", torch.device("cpu")
+    )
+    assert actor_payload["iteration"] == 2
+    with torch.inference_mode():
+        action = actor(torch.zeros(3, 5, INFANTRY_SPEC.actor_obs_dim))
+    assert action.shape == (3, INFANTRY_SPEC.policy_action_dim)
+
+
+def test_evaluation_asset_config_resolves_relative_paths(tmp_path) -> None:
+    config_dir = tmp_path / "configs"
+    asset_dir = tmp_path / "assets"
+    config_dir.mkdir()
+    asset_dir.mkdir()
+    for name in ("run_policy.py", "scene.xml", "robot.usda"):
+        (asset_dir / name).write_text("placeholder", encoding="utf-8")
+    path = config_dir / "eval.yaml"
+    path.write_text(
+        yaml.safe_dump(
+            {
+                "asset": {
+                    "replay_source": "../assets/run_policy.py",
+                    "mjcf": "../assets/scene.xml",
+                    "usd": "../assets/robot.usda",
+                },
+                "commands": {
+                    "lin_vel_x": [-1.0, 1.0],
+                    "ang_vel_z": [0.0, 0.0],
+                    "height": [0.1, 0.2],
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    config = evaluate_flat_policy_isaaclab.load_asset_config(path)
+    assert config["asset"]["usd"] == (asset_dir / "robot.usda").resolve()

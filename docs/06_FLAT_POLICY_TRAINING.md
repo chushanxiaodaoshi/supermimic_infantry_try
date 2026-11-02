@@ -69,3 +69,24 @@ python tools/train_flat_policy.py \
 日志中的 `imagined_reward` 上升只说明策略利用了当前 World Model。必须同时监控
 `wm_input_rms`；它明显持续增大表示策略正在离开模型训练分布。最终是否可用必须在独立
 Newton/MuJoCo-Warp 仿真中验证站立、速度跟踪、跌倒率及完整 mjlab reward。
+
+## Newton 独立评测
+
+策略 checkpoint 不能通过 ONNX Teacher 重放脚本直接播放。使用下面的入口将 PyTorch
+Actor 放回同一个 Isaac Lab 3/Newton/MuJoCo-Warp 环境：
+
+```bash
+python tools/evaluate_flat_policy_isaaclab.py \
+  --config configs/infantry/collection/isaaclab_flat.yaml \
+  --checkpoint /workspace/supermimic/logs/infantry_flat_policy_run01/checkpoint_00001000.pt \
+  --num-envs 64 \
+  --steps 10000 \
+  --vx 1.0 \
+  --yaw 0.0 \
+  --height 0.13 \
+  --report /workspace/supermimic/logs/infantry_flat_policy_run01/eval_vx1.json \
+  --headless
+```
+
+报告给出真实后端上的速度跟踪 MAE、episode return、长度和跌倒比例。当前评测的跌倒
+判定包含后端低高度终止与60度倾斜；底盘接触力仍未被伪造为 World Model 输出。
