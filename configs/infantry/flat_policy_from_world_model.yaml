@@ -1,0 +1,60 @@
+seed: 42
+device: cuda:0
+output: logs/infantry_flat_policy
+
+world_model:
+  # Override on the command line with --world-model /path/to/checkpoint.pt.
+  checkpoint: logs/infantry_world_model/checkpoint_00010000.pt
+
+controller:
+  # Source of truth for action order, scaling, clipping and tendon target.
+  replay_source: mujoco390/run_policy.py
+
+datasets:
+  # These datasets provide initial states, observation histories, commands and
+  # physics contexts. Only split=0 is sampled during policy optimization.
+  - name: flat
+    path: data/teacher_isaaclab_flat
+    weight: 1.0
+
+actor:
+  hidden: [512, 256, 128]
+  history: 5
+  bptt_horizon: 16
+  normalizer_samples: 100000
+
+critic:
+  hidden: [256, 128]
+
+training:
+  iterations: 100000
+  batch_size: 4096
+  learning_rate: 0.0002
+  gamma: 0.99
+  gae_lambda: 0.95
+  max_grad_norm: 1.0
+  checkpoint_every: 1000
+  log_every: 50
+  # Keep zero for the exact migrated reward. wm_input_rms is still logged so
+  # model-support excursions remain visible during training.
+  support_penalty_weight: 0.0
+
+reward:
+  # The active joints in the replay MJCF are effectively unbounded. These
+  # bounds preserve mjlab's dof_pos_limits term without inventing new limits.
+  joint_lower: [-100.0, -100.0, -100.0, -100.0]
+  joint_upper: [100.0, 100.0, 100.0, 100.0]
+  weights:
+    tracking_lin_vel: 1.0
+    tracking_lin_vel_enhance: 1.0
+    tracking_ang_vel: 1.0
+    nominal_state: -1.0
+    leg_fore_aft: -2.0
+    ang_vel_xy: -0.2
+    orientation: -100.0
+    dof_vel: -0.0001
+    dof_acc: -0.000001
+    torques: -0.0001
+    action_rate: -0.01
+    action_smooth: -0.01
+    dof_pos_limits: -1.0

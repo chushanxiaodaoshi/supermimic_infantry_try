@@ -204,10 +204,11 @@ Copyright (c) 2026 ETH Zurich, Chong Zhang.
 ## Balance-infantry adaptation
 
 The `feature/infantry-world-model` branch keeps the original G1 path intact. Its
-current scope is deliberately limited to three existing ONNX PPO Teachers
-(flat, independent rotation, jump), Isaac Lab 3 data collection, and shared
-world-model pretraining. It does not train a Student, Actor/Critic, BC/DAgger,
-reference tracker, or BPTT policy.
+current scope includes three existing ONNX PPO Teachers (flat, independent
+rotation, jump), Isaac Lab 3 data collection, shared world-model pretraining,
+and a teacher-free flat Actor/Critic trained by differentiable short-horizon
+rollouts through a frozen pretrained World Model. It does not use BC/DAgger or
+reference-trajectory tracking for the Infantry policy.
 
 The self-contained MuJoCo 3.9 reference is vendored in `mujoco390/`. It is the
 source of the replay observation/control contract and includes the MJCF assets,
@@ -248,6 +249,6 @@ normalization and RNG state for exact resume.
 
 See [Isaac Lab Teacher collection](docs/04_ISAACLAB_TEACHER_COLLECTION.md),
 [the upstream audit](docs/01_UPSTREAM_AUDIT.md), and
-[the robot adapter report](docs/02_ROBOT_ADAPTER.md). The target Isaac Lab CUDA
+[the flat policy training contract](docs/06_FLAT_POLICY_TRAINING.md). The target Isaac Lab CUDA
 integration and real dataset/model results must still be produced on the cloud
 machine; local static validation is not presented as completed training.

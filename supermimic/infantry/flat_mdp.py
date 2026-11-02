@@ -176,7 +176,9 @@ def flat_reward_terms(
         rotation.transpose(-1, -2) @ gravity.unsqueeze(-1)
     ).squeeze(-1)
     forward_error = (command[..., 0] - body_linear_velocity[..., 0]).square()
-    yaw_error = (command[..., 2] - body_angular_velocity[..., 2]).square()
+    # Replay command layout is (forward velocity, yaw velocity, body height),
+    # unlike mjlab's older four-value manager command.
+    yaw_error = (command[..., 1] - body_angular_velocity[..., 2]).square()
     leg_angles = _virtual_leg_angles(q)
     policy_ids = torch.as_tensor(_POLICY_JOINT_IDS, device=q.device)
     leg_joint_ids = policy_ids[torch.as_tensor(_LEG_ACTION_IDS, device=q.device)]

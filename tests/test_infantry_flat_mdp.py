@@ -90,7 +90,7 @@ def test_flat_reward_backpropagates_through_predicted_state_and_action() -> None
     reward, terms = flat_reward(
         codec.unflatten(previous),
         current_state,
-        torch.tensor([[1.0, 0.0, 0.2]] * 2),
+        torch.tensor([[1.0, 0.2, 0.13]] * 2),
         action,
         torch.zeros_like(action),
         torch.zeros_like(action),
