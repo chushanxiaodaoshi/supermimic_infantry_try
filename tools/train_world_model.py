@@ -18,6 +18,7 @@ sys.path.insert(0, str(REPO))
 import torch
 import yaml
 from torch import nn
+from torch.nn import functional as F
 
 from supermimic.core.networks import WorldModel
 from supermimic.data.dataset import ChunkDataset, DatasetSource, MixtureDataset
@@ -146,6 +147,8 @@ def fit_normalizers(
             )
         )
         model.out_norm.update(model.transition_targets(state, next_state))
+        if model.termination_norm is not None:
+            model.termination_norm.update(model.codec.invariant_features(next_state))
         remaining -= count
 
 
@@ -164,11 +167,6 @@ def rebase_network_for_normalizers(
     last linear layers are transformed so the represented physical transition
     function is unchanged before warm-start training begins.
     """
-    first = model.net[0]
-    last = model.net[-1]
-    if not isinstance(first, nn.Linear) or not isinstance(last, nn.Linear):
-        raise TypeError("WorldModel must start and end with linear layers")
-
     new_input_mean = model.in_norm.mean
     new_input_std = model.in_norm.std()
     new_output_mean = model.out_norm.mean
@@ -193,19 +191,50 @@ def rebase_network_for_normalizers(
     ):
         raise ValueError("normalizer standard deviations must be positive")
 
-    old_first_weight = first.weight.detach().clone()
     input_scale = new_input_std / old_input_std
     input_shift = (new_input_mean - old_input_mean) / old_input_std
-    first.weight.mul_(input_scale.unsqueeze(0))
-    first.bias.add_(old_first_weight @ input_shift)
-
-    old_last_bias = last.bias.detach().clone()
     output_scale = old_output_std / new_output_std
-    last.weight.mul_(output_scale.unsqueeze(1))
-    last.bias.copy_(
-        old_last_bias * output_scale
-        + (old_output_mean - new_output_mean) / new_output_std
-    )
+    for member_index in range(model.ensemble_size):
+        member = model._member(member_index)
+        first = member[0]
+        last = member[-1]
+        if not isinstance(first, nn.Linear) or not isinstance(last, nn.Linear):
+            raise TypeError("WorldModel members must start and end with linear layers")
+        old_first_weight = first.weight.detach().clone()
+        first.weight.mul_(input_scale.unsqueeze(0))
+        first.bias.add_(old_first_weight @ input_shift)
+
+        old_last_bias = last.bias.detach().clone()
+        last.weight.mul_(output_scale.unsqueeze(1))
+        last.bias.copy_(
+            old_last_bias * output_scale
+            + (old_output_mean - new_output_mean) / new_output_std
+        )
+
+
+@torch.no_grad()
+def rebase_termination_normalizer(
+    model: WorldModel,
+    *,
+    old_mean: torch.Tensor,
+    old_std: torch.Tensor,
+) -> None:
+    """Preserve termination logits after refitting their input statistics."""
+    if model.termination_net is None or model.termination_norm is None:
+        return
+    first = model.termination_net[0]
+    if not isinstance(first, nn.Linear):
+        raise TypeError("termination head must start with a linear layer")
+    new_mean = model.termination_norm.mean
+    new_std = model.termination_norm.std()
+    statistics = (old_mean, old_std, new_mean, new_std)
+    if any(not torch.isfinite(value).all() for value in statistics):
+        raise FloatingPointError("termination normalizer statistics must be finite")
+    if (old_std <= 0).any() or (new_std <= 0).any():
+        raise ValueError("termination normalizer standard deviations must be positive")
+    old_weight = first.weight.detach().clone()
+    first.weight.mul_((new_std / old_std).unsqueeze(0))
+    first.bias.add_(old_weight @ ((new_mean - old_mean) / old_std))
 
 
 def initialize_from_checkpoint(
@@ -222,14 +251,40 @@ def initialize_from_checkpoint(
     source_spec = payload.get("robot_spec")
     if source_spec is not None and source_spec != asdict(INFANTRY_SPEC):
         raise ValueError("initialization checkpoint uses an incompatible robot spec")
-    model.load_state_dict(payload["world_model"], strict=True)
+    source_state = payload["world_model"]
+    load_result = model.load_state_dict(source_state, strict=False)
+    allowed_missing = ("shadow_nets.", "termination_net.", "termination_norm.")
+    disallowed_missing = [
+        key for key in load_result.missing_keys if not key.startswith(allowed_missing)
+    ]
+    if disallowed_missing or load_result.unexpected_keys:
+        raise ValueError(
+            "initialization checkpoint is structurally incompatible: "
+            f"missing={disallowed_missing}, unexpected={load_result.unexpected_keys}"
+        )
+    shadows_initialized = not any(
+        key.startswith("shadow_nets.") for key in source_state
+    )
+    if model.ensemble_size > 1 and shadows_initialized:
+        model.initialize_shadows_from_primary()
 
     old_input_mean = model.in_norm.mean.detach().clone()
     old_input_std = model.in_norm.std().detach().clone()
     old_output_mean = model.out_norm.mean.detach().clone()
     old_output_std = model.out_norm.std().detach().clone()
+    source_has_termination = any(
+        key.startswith("termination_net.") for key in source_state
+    )
+    old_termination_mean = None
+    old_termination_std = None
+    if source_has_termination and model.termination_norm is not None:
+        old_termination_mean = model.termination_norm.mean.detach().clone()
+        old_termination_std = model.termination_norm.std().detach().clone()
 
-    for normalizer in (model.in_norm, model.out_norm):
+    normalizers = [model.in_norm, model.out_norm]
+    if model.termination_norm is not None:
+        normalizers.append(model.termination_norm)
+    for normalizer in normalizers:
         normalizer.mean.zero_()
         normalizer.var.fill_(1.0)
         normalizer.count.zero_()
@@ -247,16 +302,29 @@ def initialize_from_checkpoint(
         old_output_mean=old_output_mean,
         old_output_std=old_output_std,
     )
+    if old_termination_mean is not None and old_termination_std is not None:
+        rebase_termination_normalizer(
+            model,
+            old_mean=old_termination_mean,
+            old_std=old_termination_std,
+        )
     return {
         "checkpoint": str(path),
         "source_iteration": int(payload.get("iteration", 0)),
         "optimizer": "reset",
         "normalizers": "refit_with_function_preserving_rebase",
+        "shadow_models": (
+            "initialized_from_primary" if shadows_initialized else "restored"
+        ),
+        "termination_head": "restored" if source_has_termination else "new",
     }
 
 
 def rollout_error(
-    model: WorldModel, batch: dict[str, torch.Tensor]
+    model: WorldModel,
+    batch: dict[str, torch.Tensor],
+    *,
+    member: int = 0,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     prediction = model.codec.unflatten(batch["state"][:, 0])
     errors = []
@@ -265,6 +333,7 @@ def rollout_error(
             prediction,
             batch["applied_control"][:, step],
             batch["context"][:, step],
+            member=member,
         )
         target = model.codec.unflatten(batch["next_state"][:, step])
         errors.append(model.state_error(prediction, target))
@@ -329,6 +398,23 @@ def _metric_row(errors: torch.Tensor) -> dict[str, float]:
     return result
 
 
+def _termination_metrics(
+    probabilities: torch.Tensor, labels: torch.Tensor
+) -> dict[str, float | int]:
+    labels = labels.float()
+    prediction = probabilities >= 0.5
+    positive = labels >= 0.5
+    return {
+        "bce": float(F.binary_cross_entropy(probabilities, labels)),
+        "brier": float((probabilities - labels).square().mean()),
+        "accuracy": float((prediction == positive).float().mean()),
+        "positive_recall": float(
+            (prediction & positive).sum() / positive.sum().clamp_min(1)
+        ),
+        "positives": int(positive.sum()),
+    }
+
+
 @torch.no_grad()
 def evaluate(
     model: WorldModel,
@@ -362,7 +448,10 @@ def evaluate(
             "metrics": {},
         }
         has_phase = "motion_phase" in source.dataset.data
-        fields = requested_fields if has_phase else requested_fields[:-1]
+        fields = list(requested_fields if has_phase else requested_fields[:-1])
+        has_termination = model.has_termination_head and "terminated" in source.dataset.data
+        if has_termination:
+            fields.append("terminated")
         for horizon in horizons:
             if not source.dataset.has_windows(split, horizon):
                 source_report["metrics"][str(horizon)] = {
@@ -391,6 +480,20 @@ def evaluate(
             row: dict[str, Any] = _metric_row(final_error)
             row["windows"] = batch_size
             row["finite_fraction"] = float(torch.isfinite(predicted_state).float().mean())
+            initial_state = model.codec.unflatten(batch["state"][:, 0])
+            row["ensemble_disagreement"] = float(
+                model.ensemble_disagreement(
+                    initial_state,
+                    batch["applied_control"][:, 0],
+                    batch["context"][:, 0],
+                ).mean()
+            )
+            if has_termination:
+                target_state = model.codec.unflatten(batch["next_state"][:, -1])
+                row["termination"] = _termination_metrics(
+                    model.termination_probability(target_state),
+                    batch["terminated"][:, -1],
+                )
             if has_phase:
                 phase = batch["motion_phase"][:, -1]
                 row["motion_phases"] = {
@@ -551,8 +654,18 @@ def main() -> None:
                     f"{required_window} consecutive transitions"
                 )
 
-    hidden = tuple(int(value) for value in resolved_config["model"].get("hidden", [256, 256]))
-    model = WorldModel(INFANTRY_SPEC, hidden=hidden).to(device)
+    model_cfg = resolved_config["model"]
+    hidden = tuple(int(value) for value in model_cfg.get("hidden", [256, 256]))
+    termination_hidden = tuple(
+        int(value) for value in model_cfg.get("termination_hidden", [128, 64])
+    )
+    model = WorldModel(
+        INFANTRY_SPEC,
+        hidden=hidden,
+        ensemble_size=int(model_cfg.get("ensemble_size", 1)),
+        termination_head=bool(model_cfg.get("termination_head", False)),
+        termination_hidden=termination_hidden,
+    ).to(device)
     optimizer = torch.optim.Adam(
         model.parameters(), lr=float(training.get("learning_rate", 2.0e-4))
     )
@@ -595,6 +708,12 @@ def main() -> None:
     checkpoint_every = int(training.get("checkpoint_every", 1000))
     validation_every = int(validation.get("interval", checkpoint_every))
     max_grad_norm = float(training.get("max_grad_norm", 1.0))
+    termination_loss_weight = float(training.get("termination_loss_weight", 1.0))
+    termination_positive_weight = float(
+        training.get("termination_positive_weight", 10.0)
+    )
+    if termination_loss_weight < 0.0 or termination_positive_weight <= 0.0:
+        raise ValueError("termination loss weights must be non-negative and positive")
     log_path = output / "train_log.jsonl"
     validation_path = output / "validation.jsonl"
     started = time.perf_counter()
@@ -602,13 +721,41 @@ def main() -> None:
 
     with log_path.open("a", encoding="utf-8") as log:
         for iteration in range(start_iteration + 1, iterations + 1):
-            batch = dataset.sample_windows(
-                batch_size, window, split=0, device=device
-            )
-            errors, _ = rollout_error(model, batch)
             normalizer = torch.maximum(model.out_norm.std(), floor)
-            scaled = errors / normalizer
-            loss = scaled.square().mean()
+            member_losses = []
+            first_scaled = None
+            for member in range(model.ensemble_size):
+                batch = dataset.sample_windows(
+                    batch_size, window, split=0, device=device
+                )
+                errors, _ = rollout_error(model, batch, member=member)
+                scaled = errors / normalizer
+                member_losses.append(scaled.square().mean())
+                if first_scaled is None:
+                    first_scaled = scaled
+            assert first_scaled is not None
+            dynamics_loss = torch.stack(member_losses).mean()
+            termination_loss = dynamics_loss.new_zeros(())
+            if model.has_termination_head:
+                termination_batch = dataset.sample_windows(
+                    batch_size,
+                    1,
+                    split=0,
+                    device=device,
+                    fields=("next_state", "terminated"),
+                )
+                termination_state = model.codec.unflatten(
+                    termination_batch["next_state"][:, 0]
+                )
+                termination_labels = termination_batch["terminated"][:, 0].float()
+                termination_loss = F.binary_cross_entropy_with_logits(
+                    model.termination_logit(termination_state),
+                    termination_labels,
+                    pos_weight=torch.as_tensor(
+                        termination_positive_weight, device=device
+                    ),
+                )
+            loss = dynamics_loss + termination_loss_weight * termination_loss
             if not torch.isfinite(loss):
                 raise FloatingPointError(f"non-finite loss at iteration {iteration}")
             optimizer.zero_grad(set_to_none=True)
@@ -619,13 +766,21 @@ def main() -> None:
                     f"non-finite gradient norm at iteration {iteration}"
                 )
             optimizer.step()
-            transitions_seen += batch_size * window
+            transitions_seen += batch_size * (
+                model.ensemble_size * window + int(model.has_termination_head)
+            )
             runtime = time.perf_counter() - started
             row = {
                 "iteration": iteration,
                 "loss": float(loss.detach()),
-                "one_step_normalized_mse": float(scaled[:, 0].square().mean().detach()),
-                "last_step_normalized_mse": float(scaled[:, -1].square().mean().detach()),
+                "dynamics_loss": float(dynamics_loss.detach()),
+                "termination_loss": float(termination_loss.detach()),
+                "one_step_normalized_mse": float(
+                    first_scaled[:, 0].square().mean().detach()
+                ),
+                "last_step_normalized_mse": float(
+                    first_scaled[:, -1].square().mean().detach()
+                ),
                 "gradient_norm": float(grad_norm.detach()),
                 "transitions_per_second": transitions_seen / max(runtime, 1.0e-9),
                 "elapsed_seconds": elapsed_before + runtime,

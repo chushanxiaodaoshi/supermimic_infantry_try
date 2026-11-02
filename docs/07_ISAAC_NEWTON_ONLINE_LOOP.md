@@ -21,8 +21,24 @@ timestep、context、闭链和气弹簧等语义变化会直接终止运行。
 训练混合不再累计所有历史 Actor 数据。`replay.recent_actor_cycles` 限制活跃 Actor
 分片数量，最新分片权重最高，旧分片按 `actor_recency_decay` 衰减并最终退出活跃集合；
 Teacher 权重统一乘 `teacher_anchor_scale`。旧采集目录仍保留用于审计，但不会无限
-支配当前 World Model。该层是 Teacher-seeded Active Dyna 的数据基础，后续模型
-不确定性和自适应想象范围建立在同一个活跃回放契约上。
+支配当前 World Model。
+
+## 不确定性与终止模型
+
+在线配置使用一个确定性主动力学模型和两个独立影子模型。三个成员共享输入/输出
+归一化，但每次更新分别抽取训练窗口；主模型仍提供 Actor 的可微梯度，影子模型只
+用于度量归一化状态增量的 epistemic disagreement。这样不会用随机输出替代可控的
+确定性仿真动力学，同时可以识别 Actor 正在利用的数据覆盖盲区。
+
+World Model 还从真实 `next_state` 与 `terminated` 标签学习终止概率。它不使用奖励，
+也不把手写倾角阈值当成监督。验证报告在各数据源、各 horizon 下同时输出动力学误差、
+模型分歧以及终止 BCE/Brier/正例召回率。旧的单模型 checkpoint 可直接作为新运行的
+`--init-from`：主模型物理函数经归一化重参数化保持不变，影子模型由主模型加微小扰动
+初始化，终止头从真实在线数据开始学习。Resume 则严格恢复全部成员、终止头、优化器、
+归一化和随机状态。
+
+这一阶段只建立可信度信号；Actor 对分歧的惩罚和自适应缩短想象范围在下一阶段接入，
+不能把“已经输出 disagreement”误写成策略已经受到不确定性约束。
 
 小规模回归命令：
 

@@ -30,6 +30,10 @@ student_collection:
 
 world_model:
   hidden: [512, 512]
+  # One differentiable primary plus two independent epistemic shadows.
+  ensemble_size: 3
+  termination_head: true
+  termination_hidden: [128, 64]
   training:
     iterations: 10
     batch_size: 128
@@ -37,6 +41,8 @@ world_model:
     learning_rate: 0.0001
     normalizer_samples: 2048
     max_grad_norm: 1.0
+    termination_loss_weight: 1.0
+    termination_positive_weight: 10.0
     checkpoint_every: 10
   validation:
     interval: 10

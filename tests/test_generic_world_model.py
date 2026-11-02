@@ -59,6 +59,32 @@ def test_world_model_action_gradient_matches_finite_difference() -> None:
     torch.testing.assert_close(automatic, finite, rtol=2.0e-4, atol=2.0e-6)
 
 
+def test_world_model_shadows_and_termination_head_are_differentiable() -> None:
+    torch.manual_seed(17)
+    model = WorldModel(
+        INFANTRY_SPEC,
+        hidden=(32,),
+        zero_init_output=False,
+        ensemble_size=3,
+        termination_head=True,
+        termination_hidden=(16,),
+    )
+    model.initialize_shadows_from_primary(noise_std=0.01)
+    state = identity_state(4)
+    control = torch.randn(4, INFANTRY_SPEC.control_dim, requires_grad=True)
+    context = torch.zeros(4, INFANTRY_SPEC.context_dim)
+    disagreement = model.ensemble_disagreement(state, control, context)
+    probability = model.termination_probability(state)
+    assert disagreement.shape == (4,)
+    assert probability.shape == (4,)
+    assert torch.isfinite(disagreement).all()
+    assert torch.isfinite(probability).all()
+    assert (disagreement > 0).all()
+    (disagreement.mean() + probability.mean()).backward()
+    assert control.grad is not None
+    assert torch.isfinite(control.grad).all()
+
+
 @pytest.mark.parametrize("detach_dynamics", [False, True])
 def test_bptt_updates_actor_without_world_model_parameter_gradients(
     detach_dynamics: bool, monkeypatch: pytest.MonkeyPatch

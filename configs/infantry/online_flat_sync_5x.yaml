@@ -34,6 +34,10 @@ student_collection:
 
 world_model:
   hidden: [512, 512]
+  # The primary remains deterministic; shadows measure epistemic disagreement.
+  ensemble_size: 3
+  termination_head: true
+  termination_hidden: [128, 64]
   training:
     iterations: 500
     batch_size: 128
@@ -41,6 +45,8 @@ world_model:
     learning_rate: 0.0001
     normalizer_samples: 10000
     max_grad_norm: 1.0
+    termination_loss_weight: 1.0
+    termination_positive_weight: 10.0
     checkpoint_every: 500
   validation:
     interval: 500

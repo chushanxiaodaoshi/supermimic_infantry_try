@@ -126,7 +126,16 @@ def load_world_model(path: Path, device: torch.device) -> tuple[WorldModel, dict
     checkpoint_cfg = _mapping(payload.get("config"), "World Model checkpoint config")
     model_cfg = _mapping(checkpoint_cfg.get("model"), "World Model model config")
     hidden = tuple(int(value) for value in model_cfg.get("hidden", (512, 512)))
-    model = WorldModel(INFANTRY_SPEC, hidden=hidden).to(device)
+    termination_hidden = tuple(
+        int(value) for value in model_cfg.get("termination_hidden", (128, 64))
+    )
+    model = WorldModel(
+        INFANTRY_SPEC,
+        hidden=hidden,
+        ensemble_size=int(model_cfg.get("ensemble_size", 1)),
+        termination_head=bool(model_cfg.get("termination_head", False)),
+        termination_hidden=termination_hidden,
+    ).to(device)
     model.load_state_dict(payload["world_model"], strict=True)
     model.eval()
     for parameter in model.parameters():

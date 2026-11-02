@@ -65,7 +65,7 @@ class RunningNorm(nn.Module):
 
 
 class WorldModel(nn.Module):
-    """Deterministic dynamics using actual applied controls, not policy actions."""
+    """Deterministic primary dynamics with optional epistemic shadow models."""
 
     def __init__(
         self,
@@ -73,25 +73,55 @@ class WorldModel(nn.Module):
         hidden: tuple[int, ...] = (512, 512),
         *,
         zero_init_output: bool = True,
+        ensemble_size: int = 1,
+        termination_head: bool = False,
+        termination_hidden: tuple[int, ...] = (128, 64),
     ):
         super().__init__()
+        if ensemble_size <= 0:
+            raise ValueError("ensemble_size must be positive")
         self.spec = spec
         self.codec = StateCodec(spec)
+        self.ensemble_size = ensemble_size
         self.in_dim = spec.invariant_dim + spec.control_dim + spec.context_dim
-        self.net = mlp(
-            self.in_dim,
-            hidden,
-            spec.delta_dim,
-            activation=nn.SiLU,
-            layer_norm=True,
+
+        def dynamics_net() -> nn.Sequential:
+            result = mlp(
+                self.in_dim,
+                hidden,
+                spec.delta_dim,
+                activation=nn.SiLU,
+                layer_norm=True,
+            )
+            if zero_init_output:
+                output_layer = result[-1]
+                assert isinstance(output_layer, nn.Linear)
+                nn.init.zeros_(output_layer.weight)
+                nn.init.zeros_(output_layer.bias)
+            return result
+
+        # Keep ``net`` as the primary-model key for old checkpoint compatibility.
+        self.net = dynamics_net()
+        self.shadow_nets = nn.ModuleList(
+            dynamics_net() for _ in range(ensemble_size - 1)
         )
-        if zero_init_output:
-            output_layer = self.net[-1]
-            assert isinstance(output_layer, nn.Linear)
-            nn.init.zeros_(output_layer.weight)
-            nn.init.zeros_(output_layer.bias)
         self.in_norm = RunningNorm(self.in_dim)
         self.out_norm = RunningNorm(spec.delta_dim, eps=1e-4)
+        self.termination_net: nn.Sequential | None = None
+        self.termination_norm: RunningNorm | None = None
+        if termination_head:
+            self.termination_norm = RunningNorm(spec.invariant_dim)
+            self.termination_net = mlp(
+                spec.invariant_dim,
+                termination_hidden,
+                1,
+                activation=nn.SiLU,
+                layer_norm=True,
+            )
+            output_layer = self.termination_net[-1]
+            assert isinstance(output_layer, nn.Linear)
+            nn.init.zeros_(output_layer.weight)
+            nn.init.constant_(output_layer.bias, -4.0)
 
     def inputs(
         self,
@@ -123,11 +153,60 @@ class WorldModel(nn.Module):
         state: TensorState,
         applied_control: torch.Tensor,
         context: torch.Tensor,
+        *,
+        member: int = 0,
     ) -> TensorState:
         model_input = self.in_norm(self.inputs(state, applied_control, context))
-        normalized_delta = self.net(model_input)
+        normalized_delta = self._member(member)(model_input)
         delta = normalized_delta * self.out_norm.std() + self.out_norm.mean
         return self.codec.integrate(state, delta)
+
+    def _member(self, index: int) -> nn.Module:
+        if index == 0:
+            return self.net
+        if not 0 < index < self.ensemble_size:
+            raise IndexError(f"world-model member {index} is out of range")
+        return self.shadow_nets[index - 1]
+
+    def ensemble_disagreement(
+        self,
+        state: TensorState,
+        applied_control: torch.Tensor,
+        context: torch.Tensor,
+    ) -> torch.Tensor:
+        """Return dimensionless RMS disagreement of predicted transition deltas."""
+        if self.ensemble_size == 1:
+            return applied_control.new_zeros(applied_control.shape[:-1])
+        model_input = self.in_norm(self.inputs(state, applied_control, context))
+        prediction = torch.stack(
+            [self._member(index)(model_input) for index in range(self.ensemble_size)]
+        )
+        return prediction.var(dim=0, unbiased=False).mean(dim=-1).sqrt()
+
+    @property
+    def has_termination_head(self) -> bool:
+        return self.termination_net is not None
+
+    def termination_logit(self, state: TensorState) -> torch.Tensor:
+        if self.termination_net is None or self.termination_norm is None:
+            raise RuntimeError("World Model has no termination head")
+        features = self.codec.invariant_features(state)
+        return self.termination_net(self.termination_norm(features)).squeeze(-1)
+
+    def termination_probability(self, state: TensorState) -> torch.Tensor:
+        return self.termination_logit(state).sigmoid()
+
+    @torch.no_grad()
+    def initialize_shadows_from_primary(self, noise_std: float = 1.0e-3) -> None:
+        """Seed newly added shadow members from a pretrained primary model."""
+        if noise_std < 0.0:
+            raise ValueError("shadow initialization noise must be non-negative")
+        primary = self.net.state_dict()
+        for shadow in self.shadow_nets:
+            shadow.load_state_dict(primary)
+            if noise_std:
+                for parameter in shadow.parameters():
+                    parameter.add_(noise_std * torch.randn_like(parameter))
 
     def state_error(self, prediction: TensorState, target: TensorState) -> torch.Tensor:
         return self.codec.state_error(prediction, target)

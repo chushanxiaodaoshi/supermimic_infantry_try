@@ -144,7 +144,12 @@ def world_model_config(
         "device": cfg.get("device", "cuda:0"),
         "output": str(layout["world_model"]),
         "datasets": datasets,
-        "model": {"hidden": list(wm.get("hidden", [512, 512]))},
+        "model": {
+            "hidden": list(wm.get("hidden", [512, 512])),
+            "ensemble_size": int(wm.get("ensemble_size", 1)),
+            "termination_head": bool(wm.get("termination_head", False)),
+            "termination_hidden": list(wm.get("termination_hidden", [128, 64])),
+        },
         "training": copy.deepcopy(wm["training"]),
         "validation": copy.deepcopy(wm["validation"]),
     }

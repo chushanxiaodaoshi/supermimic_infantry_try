@@ -76,6 +76,9 @@ def _online_config(tmp_path: Path) -> tuple[Path, Path, Path]:
         },
         "world_model": {
             "hidden": [16],
+            "ensemble_size": 3,
+            "termination_head": True,
+            "termination_hidden": [8],
             "training": {
                 "iterations": 3,
                 "batch_size": 4,
@@ -155,6 +158,8 @@ def test_online_dry_run_builds_bounded_active_replay(tmp_path, monkeypatch) -> N
         assert [item["name"] for item in policy["datasets"]] == expected
         assert wm["datasets"][0]["weight"] == pytest.approx(0.25)
         assert wm["datasets"][-1]["weight"] == pytest.approx(1.0)
+        assert wm["model"]["ensemble_size"] == 3
+        assert wm["model"]["termination_head"] is True
         assert row["active_replay_sources"] == wm["datasets"]
         assert policy["actor"]["bptt_horizon"] == 32
         assert policy["critic"]["enabled"] is False

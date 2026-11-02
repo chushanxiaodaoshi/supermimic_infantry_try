@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import asdict
 import json
-from pathlib import Path
 import random
 import sys
+from dataclasses import asdict
+from pathlib import Path
 from typing import Any
 
 import torch
@@ -20,8 +20,8 @@ from supermimic.data.dataset import ChunkDataset
 from supermimic.infantry.spec import INFANTRY_SPEC
 from tools.train_world_model import (
     COMPONENTS,
-    EqualityConstraintEvaluator,
     PHASE_LABELS,
+    EqualityConstraintEvaluator,
     rollout_error,
 )
 
@@ -72,8 +72,18 @@ def main() -> None:
     payload = torch.load(checkpoint, map_location=device, weights_only=False)
     if payload.get("robot_spec") != asdict(INFANTRY_SPEC):
         raise ValueError("checkpoint robot spec is incompatible")
-    hidden = tuple(int(value) for value in payload["config"]["model"]["hidden"])
-    model = WorldModel(INFANTRY_SPEC, hidden=hidden).to(device)
+    model_cfg = payload["config"]["model"]
+    hidden = tuple(int(value) for value in model_cfg["hidden"])
+    termination_hidden = tuple(
+        int(value) for value in model_cfg.get("termination_hidden", (128, 64))
+    )
+    model = WorldModel(
+        INFANTRY_SPEC,
+        hidden=hidden,
+        ensemble_size=int(model_cfg.get("ensemble_size", 1)),
+        termination_head=bool(model_cfg.get("termination_head", False)),
+        termination_hidden=termination_hidden,
+    ).to(device)
     model.load_state_dict(payload["world_model"], strict=True)
     model.eval()
 

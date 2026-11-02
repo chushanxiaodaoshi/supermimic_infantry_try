@@ -10,7 +10,7 @@ import yaml
 from supermimic.core.networks import WorldModel
 from supermimic.data.chunks import ChunkWriter, episode_split
 from supermimic.infantry.spec import INFANTRY_SPEC
-from tools import train_world_model
+from tools import train_flat_policy, train_world_model
 
 
 def _episode_for_split(split: int, seed: int, run_id: int) -> int:
@@ -39,6 +39,7 @@ def _dataset(path: Path, offset: float) -> None:
                     "next_state": next_state,
                     "applied_control": torch.zeros(1, INFANTRY_SPEC.control_dim),
                     "context": torch.zeros(1, INFANTRY_SPEC.context_dim),
+                    "terminated": torch.tensor([step == 19]),
                     "timestamp": torch.tensor([step * INFANTRY_SPEC.control_dt]),
                     "run_id": torch.tensor([11]),
                     "episode_id": torch.tensor([episode]),
@@ -171,6 +172,9 @@ def test_config_training_and_resume_restore_full_state(tmp_path, monkeypatch) ->
     ]
     warm_config["training"]["iterations"] = 1
     warm_config["training"]["normalizer_samples"] = 8
+    warm_config["model"].update(
+        {"ensemble_size": 3, "termination_head": True, "termination_hidden": [8]}
+    )
     warm_path = tmp_path / "warm.yaml"
     warm_path.write_text(yaml.safe_dump(warm_config), encoding="utf-8")
     monkeypatch.setattr(
@@ -193,3 +197,13 @@ def test_config_training_and_resume_restore_full_state(tmp_path, monkeypatch) ->
     assert warm["config"]["initialization"]["source_iteration"] == 2
     assert warm["config"]["initialization"]["optimizer"] == "reset"
     assert warm["world_model"]["in_norm.count"] == 8
+    assert "shadow_nets.0.0.weight" in warm["world_model"]
+    assert "shadow_nets.1.0.weight" in warm["world_model"]
+    assert "termination_net.0.weight" in warm["world_model"]
+    assert warm["config"]["initialization"]["shadow_models"] == "initialized_from_primary"
+    assert warm["config"]["initialization"]["termination_head"] == "new"
+    loaded_model, _ = train_flat_policy.load_world_model(
+        warm_output / "checkpoint_00000001.pt", torch.device("cpu")
+    )
+    assert loaded_model.ensemble_size == 3
+    assert loaded_model.has_termination_head
