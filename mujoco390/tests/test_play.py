@@ -3,6 +3,7 @@
 import importlib.util
 from pathlib import Path
 import sys
+from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -41,6 +42,57 @@ def make_runtime(action=None, jump_policy=None):
     return PLAY.WheellegRuntime(
       model, data, Path("unused.onnx"), jump_policy=jump_policy,
     )
+
+
+def test_standup_teacher_uses_explicit_named_legs_behind_pose():
+  runtime = make_runtime()
+  PLAY.set_explicit_standup_initial_pose(runtime.model, runtime.data)
+  np.testing.assert_allclose(
+    runtime.data.qpos[:3], PLAY.STANDUP_INITIAL_ROOT_POSITION
+  )
+  np.testing.assert_allclose(
+    runtime.data.qpos[3:7], PLAY.STANDUP_INITIAL_ROOT_QUATERNION_WXYZ
+  )
+  for name, expected in PLAY.STANDUP_INITIAL_JOINT_POSITIONS.items():
+    joint_id = PLAY._suffix_id(
+      runtime.model,
+      mujoco.mjtObj.mjOBJ_JOINT,
+      runtime.model.njnt,
+      name,
+    )
+    assert runtime.data.qpos[runtime.model.jnt_qposadr[joint_id]] == expected
+  left_hip = runtime.data.site_xpos[runtime.leg_site_ids["Left_virtual_hip_site"]]
+  left_wheel = runtime.data.site_xpos[runtime.leg_site_ids["Left_wheel_axis_site"]]
+  right_hip = runtime.data.site_xpos[runtime.leg_site_ids["Right_virtual_hip_site"]]
+  right_wheel = runtime.data.site_xpos[runtime.leg_site_ids["Right_wheel_axis_site"]]
+  assert left_wheel[0] < left_hip[0]
+  assert right_wheel[0] < right_hip[0]
+
+
+def test_standup_teacher_record_has_replay_contract_fields():
+  runtime = make_runtime()
+  PLAY.set_explicit_standup_initial_pose(runtime.model, runtime.data)
+  with TemporaryDirectory() as directory:
+    output = Path(directory) / "standup.npz"
+    recorder = PLAY.StandupTeacherRecorder(
+      output=output, disabled_duration=1.0, stable_duration=0.2
+    )
+    assert not recorder.torque_enabled(0.99)
+    assert recorder.torque_enabled(1.0)
+    observation = np.zeros(150, dtype=np.float32)
+    action = np.zeros(6, dtype=np.float32)
+    qpos, qvel = runtime.data.qpos.copy(), runtime.data.qvel.copy()
+    recorder.append(runtime, 1.0, qpos, qvel, observation, action)
+    recorder.append(runtime, 1.2, qpos, qvel, observation, action)
+    assert recorder.completed and output.is_file()
+    with np.load(output) as trajectory:
+      assert trajectory["success"]
+      assert trajectory["qpos"].shape == (2, runtime.model.nq)
+      assert trajectory["qvel"].shape == (2, runtime.model.nv)
+      assert trajectory["observation"].shape == (2, 150)
+      assert trajectory["action"].shape == (2, 6)
+      assert trajectory["applied_control"].shape == (2, 8)
+      assert trajectory["initial_joint_names"].shape == (14,)
 
 
 def test_rm_course_heights_collision_masks_and_gaps():

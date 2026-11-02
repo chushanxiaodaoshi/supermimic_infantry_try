@@ -108,6 +108,31 @@ python run_policy.py --onnx "D:/path/model.onnx" --xml "D:/path/scene.xml"
 python run_policy.py --onnx "D:/path/model.onnx" --headless --duration 5 --no-debug
 ```
 
+## 起身 Teacher 轨迹
+
+播放器可以复现“失能落地，再恢复 rough 控制”的起身过程。该模式不从 keyframe 或
+`initial_state.npz` 猜测初态，而是在 `run_policy.py` 中按名称显式设置自由基座和14个
+关节：两侧轮轴位于机体后方，全部速度为零。开始时六个策略执行器失能，气弹簧继续
+保持300 N；默认等待1秒让底盘落地，再恢复 `rough.onnx`。当底盘高度、姿态和速度连续
+0.2秒满足稳定条件后，将恢复控制以来的真实轨迹保存为压缩 NPZ，之后继续普通 rough
+重放。
+
+```powershell
+conda activate mujoco390
+cd D:/mujoco390
+python run_policy.py `
+  --onnx ./onnx/rough.onnx `
+  --jump-onnx ./onnx/jump.onnx `
+  --headless --duration 3 --no-debug `
+  --standup-teacher-output ./standup_teacher.npz
+```
+
+轨迹包含每个100 Hz控制步的 `qpos/qvel`、150维策略观测、6维 rough 原始动作、8维
+实际控制（六个电机目标加两根气弹簧）、下一状态和实际执行器力矩，并保存显式初始
+位姿与成功标记。默认实测为先失能1秒，rough 恢复后约0.77秒达到稳定站立。可用
+`--standup-disabled-duration` 和 `--standup-stable-duration` 调整阶段时长；输出文件存在
+时程序拒绝覆盖。
+
 GUI Control 监视实际电机力矩（N·m），不用于手动控制。
 腿电机硬限幅 ±28 N·m、轮子 ±4 N·m；气弹簧固定 300 N。
 PD 参数沿用 XML：默认腿 kp=15、kd=1，轮子速度反馈增益 0.1。

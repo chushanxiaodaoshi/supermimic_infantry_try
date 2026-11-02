@@ -59,6 +59,30 @@ ACTION_TARGETS = (
 ACTION_SCALES = np.array((0.5, 0.5, 10.0, 0.5, 0.5, 10.0))
 POLICY_TORQUE_LIMITS = np.array((28.0, 28.0, 4.0, 28.0, 28.0, 4.0))
 
+# Explicit stand-up Teacher reset.  Do not inherit this pose from the scene
+# keyframe or initial_state.npz: the experiment requires both legs folded
+# behind the chassis before the six policy actuators are enabled.
+STANDUP_INITIAL_ROOT_POSITION = (0.0, 0.0, 0.20)
+STANDUP_INITIAL_ROOT_QUATERNION_WXYZ = (1.0, 0.0, 0.0, 0.0)
+STANDUP_INITIAL_JOINT_POSITIONS = {
+  "Left_rear_joint": 0.0,
+  "Left_rear_child1_joint": 0.0,
+  "Left_Wheel_joint": 0.0,
+  "Right_rear_joint": 0.0,
+  "Right_rear_child1_joint": 0.0,
+  "Right_Wheel_joint": 0.0,
+  "Left_front_joint": 0.0,
+  "Left_front_child1_joint": 0.0,
+  "Left_front_child2_joint": 0.0,
+  "Left_front_child3_joint": 0.0,
+  "Right_front_joint": 0.0,
+  "Right_front_child1_joint": 0.0,
+  "Right_front_child2_joint": 0.0,
+  "Right_front_joint3_joint": 0.0,
+}
+STANDUP_DISABLED_DURATION_S = 1.0
+STANDUP_STABLE_DURATION_S = 0.20
+
 jump_onnx = "./onnx/jump.onnx"
 onnx = "./onnx/rough.onnx"
 
@@ -127,6 +151,27 @@ def parse_args() -> argparse.Namespace:
   parser.add_argument("--headless", action="store_true")
   parser.add_argument("--duration", type=float, default=0.0)
   parser.add_argument(
+    "--standup-teacher-output",
+    type=Path,
+    default=None,
+    help=(
+      "Record an automatic disabled-to-rough stand-up trajectory to NPZ. "
+      "The explicit stand-up reset is used instead of --state."
+    ),
+  )
+  parser.add_argument(
+    "--standup-disabled-duration",
+    type=float,
+    default=STANDUP_DISABLED_DURATION_S,
+    help="Seconds to settle with policy actuators disabled before rough starts.",
+  )
+  parser.add_argument(
+    "--standup-stable-duration",
+    type=float,
+    default=STANDUP_STABLE_DURATION_S,
+    help="Continuous stable time required to finish the stand-up trajectory.",
+  )
+  parser.add_argument(
     "--debug",
     action=argparse.BooleanOptionalAction,
     default=DEBUG_POLICY,
@@ -161,6 +206,34 @@ def _suffix_id(
   if len(matches) != 1:
     raise KeyError(f"Expected one {obj.name} ending in {suffix!r}, got {matches}")
   return matches[0]
+
+
+def set_explicit_standup_initial_pose(
+  model: mujoco.MjModel,
+  data: mujoco.MjData,
+) -> None:
+  """Apply the named legs-behind reset used by the stand-up Teacher."""
+  data.qpos[:] = model.qpos0
+  data.qvel[:] = 0.0
+  free_joint = _suffix_id(
+    model, mujoco.mjtObj.mjOBJ_JOINT, model.njnt, "base_free_joint"
+  )
+  if model.jnt_type[free_joint] != mujoco.mjtJoint.mjJNT_FREE:
+    raise ValueError("base_free_joint must be a free joint")
+  root_address = model.jnt_qposadr[free_joint]
+  data.qpos[root_address : root_address + 3] = STANDUP_INITIAL_ROOT_POSITION
+  data.qpos[root_address + 3 : root_address + 7] = (
+    STANDUP_INITIAL_ROOT_QUATERNION_WXYZ
+  )
+  for name, position in STANDUP_INITIAL_JOINT_POSITIONS.items():
+    joint_id = _suffix_id(model, mujoco.mjtObj.mjOBJ_JOINT, model.njnt, name)
+    if model.jnt_type[joint_id] not in (
+      mujoco.mjtJoint.mjJNT_HINGE,
+      mujoco.mjtJoint.mjJNT_SLIDE,
+    ):
+      raise ValueError(f"stand-up joint {name} must have one qpos value")
+    data.qpos[model.jnt_qposadr[joint_id]] = position
+  mujoco.mj_forward(model, data)
 
 
 def make_shift_state_reader() -> Callable[[], bool]:
@@ -543,7 +616,7 @@ class WheellegRuntime:
     height: float,
     torque_enabled: bool,
     jump_requested: bool = False,
-  ) -> None:
+  ) -> tuple[np.ndarray, np.ndarray]:
     self.update_policy(jump_requested)
     if self.active_policy == "jump":
       yaw, height = 0.0, 0.0
@@ -563,6 +636,7 @@ class WheellegRuntime:
         self.data.ctrl[self.actuator_ids[name]] = value
     self.data.ctrl[self.gas_ids] = 300.0
     self.debug_policy_step(obs, action)
+    return obs[0].copy(), action.copy()
 
   @property
   def mode(self) -> str:
@@ -609,7 +683,143 @@ class WheellegRuntime:
       print(f"[policy] switched to {target}; history backfilled with current frame")
 
 
-def run_loop(runtime, controls, decimation, duration, viewer=None) -> np.ndarray:
+@dataclass
+class StandupTeacherRecorder:
+  """Record disabled settling followed by rough-policy stand-up."""
+
+  output: Path
+  disabled_duration: float
+  stable_duration: float
+  enabled_at: float | None = None
+  stable_since: float | None = None
+  completed: bool = False
+  saved: bool = False
+  rows: dict[str, list[np.ndarray | float]] = field(
+    default_factory=lambda: {
+      "timestamp": [],
+      "qpos": [],
+      "qvel": [],
+      "observation": [],
+      "action": [],
+      "applied_control": [],
+      "next_qpos": [],
+      "next_qvel": [],
+      "actuator_force": [],
+    }
+  )
+
+  def torque_enabled(self, elapsed: float) -> bool:
+    if self.enabled_at is None and elapsed >= self.disabled_duration - 1e-9:
+      self.enabled_at = elapsed
+      print(
+        "[standup teacher] rough control enabled after "
+        f"{elapsed:.3f}s disabled settling"
+      )
+    return self.enabled_at is not None
+
+  def command(self, controls: KeyboardState) -> tuple[float, float, float, bool]:
+    return 0.0, 0.0, controls.height, self.enabled_at is not None
+
+  def is_stable(self, runtime: WheellegRuntime) -> bool:
+    rotation = runtime.data.xmat[runtime.base_id].reshape(3, 3)
+    velocity = runtime.data.cvel[runtime.base_id]
+    return bool(
+      runtime.data.qpos[2] >= 0.18
+      and rotation[2, 2] >= np.cos(np.deg2rad(10.0))
+      and np.linalg.norm(velocity[:3]) <= 0.25
+      and np.linalg.norm(velocity[3:]) <= 0.25
+    )
+
+  def append(
+    self,
+    runtime: WheellegRuntime,
+    timestamp: float,
+    qpos: np.ndarray,
+    qvel: np.ndarray,
+    observation: np.ndarray,
+    action: np.ndarray,
+  ) -> None:
+    if self.enabled_at is None or self.completed:
+      return
+    control = np.concatenate(
+      (
+        runtime.data.ctrl[runtime.policy_actuator_ids].copy(),
+        runtime.data.ctrl[runtime.gas_ids].copy(),
+      )
+    )
+    values: dict[str, np.ndarray | float] = {
+      "timestamp": timestamp - self.enabled_at,
+      "qpos": qpos,
+      "qvel": qvel,
+      "observation": observation,
+      "action": action,
+      "applied_control": control,
+      "next_qpos": runtime.data.qpos.copy(),
+      "next_qvel": runtime.data.qvel.copy(),
+      "actuator_force": runtime.data.actuator_force[
+        runtime.policy_actuator_ids
+      ].copy(),
+    }
+    for name, value in values.items():
+      self.rows[name].append(value)
+    if self.is_stable(runtime):
+      if self.stable_since is None:
+        self.stable_since = timestamp
+      elif timestamp - self.stable_since >= self.stable_duration - 1e-9:
+        self.completed = True
+        self.save(success=True)
+        print(
+          "[standup teacher] stable standing reached in "
+          f"{timestamp - self.enabled_at:.3f}s; trajectory={self.output.resolve()}"
+        )
+    else:
+      self.stable_since = None
+
+  def save(self, *, success: bool) -> None:
+    if self.saved:
+      return
+    if not self.rows["timestamp"]:
+      raise RuntimeError("stand-up Teacher produced no enabled-control transitions")
+    self.output.parent.mkdir(parents=True, exist_ok=True)
+    if self.output.exists():
+      raise FileExistsError(f"refusing to overwrite trajectory: {self.output}")
+    payload = {
+      name: np.asarray(values)
+      for name, values in self.rows.items()
+    }
+    payload.update(
+      {
+        "success": np.asarray(success),
+        "disabled_duration": np.asarray(self.disabled_duration),
+        "stable_duration": np.asarray(self.stable_duration),
+        "policy_action_names": np.asarray(ACTION_TARGETS),
+        "applied_control_names": np.asarray(
+          (*ACTION_TARGETS, "Left_gas_spring_tendon", "Right_gas_spring_tendon")
+        ),
+        "initial_root_position": np.asarray(STANDUP_INITIAL_ROOT_POSITION),
+        "initial_root_quaternion_wxyz": np.asarray(
+          STANDUP_INITIAL_ROOT_QUATERNION_WXYZ
+        ),
+        "initial_joint_names": np.asarray(
+          tuple(STANDUP_INITIAL_JOINT_POSITIONS)
+        ),
+        "initial_joint_positions": np.asarray(
+          tuple(STANDUP_INITIAL_JOINT_POSITIONS.values())
+        ),
+      }
+    )
+    np.savez_compressed(self.output, **payload)
+    self.saved = True
+
+
+def run_loop(
+  runtime,
+  controls,
+  decimation,
+  duration,
+  viewer=None,
+  standup_teacher: StandupTeacherRecorder | None = None,
+) -> np.ndarray:
   """Run policy inference and physics without any environment or training code."""
   model, data = runtime.model, runtime.data
   control_dt = model.opt.timestep * decimation
@@ -619,14 +829,33 @@ def run_loop(runtime, controls, decimation, duration, viewer=None) -> np.ndarray
     if duration > 0.0 and data.time - start_time >= duration - 1.0e-9:
       break
     start = time.perf_counter()
-    runtime.step_control(
-      *controls.command(control_dt),
-      jump_requested=controls.consume_jump_request(),
+    elapsed = data.time - start_time
+    if standup_teacher is None or standup_teacher.completed:
+      command = controls.command(control_dt)
+      jump_requested = controls.consume_jump_request()
+    else:
+      standup_teacher.torque_enabled(elapsed)
+      command = standup_teacher.command(controls)
+      jump_requested = False
+    qpos = data.qpos.copy()
+    qvel = data.qvel.copy()
+    observation, action = runtime.step_control(
+      *command,
+      jump_requested=jump_requested,
     )
     for _ in range(decimation):
       mujoco.mj_step(model, data)
       max_torque = np.maximum(
         max_torque, np.abs(data.actuator_force[runtime.policy_actuator_ids])
+      )
+    if standup_teacher is not None and standup_teacher.enabled_at is not None:
+      standup_teacher.append(
+        runtime,
+        data.time - start_time,
+        qpos,
+        qvel,
+        observation,
+        action,
       )
     if not np.isfinite(data.qpos).all() or not np.isfinite(data.qvel).all():
       raise RuntimeError("MuJoCo state contains NaN/Inf; stopping playback")
@@ -636,6 +865,8 @@ def run_loop(runtime, controls, decimation, duration, viewer=None) -> np.ndarray
       if remaining > 0.0:
         time.sleep(remaining)
   print(f"[play] simulated {data.time - start_time:.2f}s; max |torque|={max_torque}")
+  if standup_teacher is not None and not standup_teacher.saved:
+    standup_teacher.save(success=standup_teacher.completed)
   return max_torque
 
 
@@ -647,8 +878,19 @@ def main() -> None:
     raise ValueError("Debug interval and timestep must be positive")
   if args.control_decimation <= 0 or args.duration < 0.0:
     raise ValueError("Decimation must be positive; duration must be nonnegative")
+  if min(args.standup_disabled_duration, args.standup_stable_duration) <= 0.0:
+    raise ValueError("Stand-up Teacher durations must be positive")
   if args.headless and args.duration <= 0.0:
     raise ValueError("--headless requires --duration with a positive value")
+  if args.standup_teacher_output is not None and args.state is not None:
+    raise ValueError("--standup-teacher-output uses its explicit pose, not --state")
+  if (
+    args.headless
+    and args.standup_teacher_output is not None
+    and args.duration
+    <= args.standup_disabled_duration + args.standup_stable_duration
+  ):
+    raise ValueError("Headless duration is too short for the stand-up Teacher")
   height_range = tuple(args.height_range)
   if height_range[0] > height_range[1]:
     raise ValueError("Height range must be in ascending order")
@@ -661,20 +903,23 @@ def main() -> None:
   model = mujoco.MjModel.from_xml_path(str(args.xml.resolve()))
   model.opt.timestep = args.timestep
   data = mujoco.MjData(model)
-  state = args.state
-  if state is None and args.xml.resolve() == (ROOT / "mjcf/scene.xml").resolve():
-    state = ROOT / "initial_state.npz"
-  if state is not None:
-    with np.load(state) as initial:
-      if initial["qpos"].shape != data.qpos.shape:
-        raise ValueError("Initial qpos shape does not match XML")
-      if initial["qvel"].shape != data.qvel.shape:
-        raise ValueError("Initial qvel shape does not match XML")
-      data.qpos[:] = initial["qpos"]
-      data.qvel[:] = initial["qvel"]
-  elif model.nkey:
-    mujoco.mj_resetDataKeyframe(model, data, 0)
-  mujoco.mj_forward(model, data)
+  if args.standup_teacher_output is not None:
+    set_explicit_standup_initial_pose(model, data)
+  else:
+    state = args.state
+    if state is None and args.xml.resolve() == (ROOT / "mjcf/scene.xml").resolve():
+      state = ROOT / "initial_state.npz"
+    if state is not None:
+      with np.load(state) as initial:
+        if initial["qpos"].shape != data.qpos.shape:
+          raise ValueError("Initial qpos shape does not match XML")
+        if initial["qvel"].shape != data.qvel.shape:
+          raise ValueError("Initial qvel shape does not match XML")
+        data.qpos[:] = initial["qpos"]
+        data.qvel[:] = initial["qvel"]
+    elif model.nkey:
+      mujoco.mj_resetDataKeyframe(model, data, 0)
+    mujoco.mj_forward(model, data)
   runtime = WheellegRuntime(
     model, data, args.onnx, args.debug_interval if args.debug else None,
     jump_policy=args.jump_onnx,
@@ -682,6 +927,17 @@ def main() -> None:
   controls = KeyboardState(
     args.vx, args.yaw, initial_height, height_range
   )
+  standup_teacher = None
+  if args.standup_teacher_output is not None:
+    standup_teacher = StandupTeacherRecorder(
+      output=args.standup_teacher_output,
+      disabled_duration=args.standup_disabled_duration,
+      stable_duration=args.standup_stable_duration,
+    )
+    print(
+      "[standup teacher] explicit legs-behind reset; policy actuators disabled, "
+      "gas springs remain enabled"
+    )
   print(f"MuJoCo {mujoco.__version__}; ONNX {args.onnx.resolve()}")
   print_rm_terrain_summary(model)
   if args.jump_onnx is not None:
@@ -693,7 +949,13 @@ def main() -> None:
   )
   print("[motor limits] leg +/-28 N*m; wheel +/-4 N*m; gas spring 300 N")
   if args.headless:
-    run_loop(runtime, controls, args.control_decimation, args.duration)
+    run_loop(
+      runtime,
+      controls,
+      args.control_decimation,
+      args.duration,
+      standup_teacher=standup_teacher,
+    )
     return
   print("Numpad 8/5 forward/back; 4/6 left/right; 7/9 raise/lower; 1 off, 2 restore")
   print(
@@ -713,7 +975,14 @@ def main() -> None:
   listener.start()
   try:
     with mujoco.viewer.launch_passive(model, data) as viewer:
-      run_loop(runtime, controls, args.control_decimation, args.duration, viewer)
+      run_loop(
+        runtime,
+        controls,
+        args.control_decimation,
+        args.duration,
+        viewer,
+        standup_teacher,
+      )
   finally:
     listener.stop()
     listener.join(timeout=1.0)
