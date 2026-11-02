@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import hashlib
 import json
 import subprocess
 import sys
@@ -14,6 +15,9 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
 import yaml
+import torch
+
+from supermimic.infantry.spec import INFANTRY_SPEC
 
 
 def parse_args() -> argparse.Namespace:
@@ -267,6 +271,123 @@ def validate_dataset_contracts(paths: list[Path]) -> dict[str, Any]:
     }
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def audit_student_dataset(path: Path, expected_actor: Path) -> dict[str, Any]:
+    manifest = _mapping(
+        json.loads((path / "manifest.json").read_text(encoding="utf-8")),
+        "Student dataset manifest",
+    )
+    metadata = _mapping(manifest.get("metadata"), "Student dataset metadata")
+    student = _mapping(metadata.get("student"), "Student provenance")
+    expected_sha = sha256_file(expected_actor)
+    if student.get("sha256") != expected_sha:
+        raise ValueError("Student dataset was not collected by the expected current Actor")
+    chunks = sorted(path.glob("chunk_*.pt"))
+    if not chunks:
+        raise FileNotFoundError(f"Student dataset has no chunks: {path}")
+    required = {
+        "student_action": INFANTRY_SPEC.policy_action_dim,
+        "executed_action": INFANTRY_SPEC.policy_action_dim,
+        "applied_control": INFANTRY_SPEC.control_dim,
+        "state": INFANTRY_SPEC.state_dim,
+        "next_state": INFANTRY_SPEC.state_dim,
+    }
+    transitions = 0
+    episodes: set[tuple[int, int]] = set()
+    terminals = 0
+    for chunk_path in chunks:
+        chunk = torch.load(chunk_path, map_location="cpu", weights_only=True)
+        missing = set(required) - chunk.keys()
+        if missing:
+            raise KeyError(f"Student chunk is missing fields: {sorted(missing)}")
+        for name, width in required.items():
+            if chunk[name].ndim != 2 or chunk[name].shape[1] != width:
+                raise ValueError(
+                    f"Student field {name} must have shape [N,{width}], "
+                    f"got {tuple(chunk[name].shape)}"
+                )
+        if not torch.isfinite(chunk["next_state"]).all():
+            raise FloatingPointError("Student next_state contains non-finite values")
+        terminal = chunk["terminated"].bool()
+        if terminal.any() and not torch.isfinite(chunk["next_state"][terminal]).all():
+            raise FloatingPointError("terminal next_state contains non-finite values")
+        transitions += len(chunk["state"])
+        terminals += int(terminal.sum())
+        run_ids = chunk.get("run_id", torch.zeros_like(chunk["episode_id"]))
+        episodes.update(
+            (int(run_id), int(episode_id))
+            for run_id, episode_id in zip(run_ids, chunk["episode_id"], strict=True)
+        )
+    if transitions != int(manifest["transitions"]):
+        raise ValueError("Student audited transition count differs from manifest")
+    return {
+        "status": "valid",
+        "actor_checkpoint": str(expected_actor),
+        "actor_sha256": expected_sha,
+        "transitions": transitions,
+        "episodes": len(episodes),
+        "terminal_transitions": terminals,
+        "recorded_dimensions": required,
+        "terminal_next_state": "recorded_before_reset_and_finite",
+    }
+
+
+def _last_jsonl(path: Path) -> dict[str, Any]:
+    lines = [line for line in path.read_text(encoding="utf-8").splitlines() if line]
+    if not lines:
+        raise ValueError(f"empty JSONL report: {path}")
+    return _mapping(json.loads(lines[-1]), f"last row in {path}")
+
+
+def summarize_cycle(
+    layout: dict[str, Path], teacher_names: list[str], student_name: str
+) -> dict[str, Any]:
+    validation = _last_jsonl(layout["world_model"] / "validation.jsonl")
+    actor = _last_jsonl(layout["actor"] / "train_log.jsonl")
+    evaluation = _mapping(
+        json.loads(layout["evaluation"].read_text(encoding="utf-8")),
+        "real evaluation report",
+    )
+    sources = _mapping(validation.get("sources"), "World Model validation sources")
+    student = _mapping(sources.get(student_name), f"validation source {student_name}")
+    training_model_survival = float(actor["survival"])
+    model_survival_value = evaluation.get("model_survival_horizon_mean")
+    model_survival = (
+        None if model_survival_value is None else float(model_survival_value)
+    )
+    real_survival_value = evaluation.get("survival_horizon_fraction")
+    real_survival = None if real_survival_value is None else float(real_survival_value)
+    return {
+        "student_data": student["split_summary"],
+        "teacher_validation": {
+            name: _mapping(sources.get(name), f"validation source {name}")["metrics"]
+            for name in teacher_names
+        },
+        "student_validation": student["metrics"],
+        "student_32_step_prediction": student["metrics"].get("32"),
+        "model_survival_32": model_survival,
+        "training_mixture_model_survival_32": training_model_survival,
+        "real_survival_32": real_survival,
+        "survival_gap_absolute": (
+            None
+            if model_survival is None or real_survival is None
+            else abs(model_survival - real_survival)
+        ),
+        "real_mean_episode_length": evaluation.get("mean_episode_length"),
+        "real_fall_fraction": evaluation.get("fall_fraction"),
+        "forward_velocity_mae": evaluation.get("forward_velocity_mae"),
+        "yaw_velocity_mae": evaluation.get("yaw_velocity_mae"),
+        "wm_input_rms": actor.get("wm_input_rms"),
+    }
+
+
 def main() -> None:
     args = parse_args()
     cfg = load_config(args.config, args)
@@ -345,6 +466,9 @@ def main() -> None:
                 write_manifest(manifest_path, manifest)
                 subprocess.run(command, cwd=REPO, check=True)
                 if stage == "collect_student":
+                    row["student_audit"] = audit_student_dataset(
+                        layout["student"], actor_checkpoint
+                    )
                     teacher_paths = [
                         resolve(item["path"]) for item in cfg["teacher_datasets"]
                     ]
@@ -355,6 +479,11 @@ def main() -> None:
                 elif stage == "evaluate":
                     row["evaluation_metrics"] = json.loads(
                         layout["evaluation"].read_text(encoding="utf-8")
+                    )
+                    row["summary"] = summarize_cycle(
+                        layout,
+                        [item["name"] for item in cfg["teacher_datasets"]],
+                        f"student_cycle_{cycle_index:04d}",
                     )
             row["status"] = "complete"
             actor_checkpoint = next_actor

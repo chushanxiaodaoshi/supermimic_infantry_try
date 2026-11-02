@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -115,7 +116,7 @@ def test_config_training_and_resume_restore_full_state(tmp_path, monkeypatch) ->
         "validation": {
             "interval": 1,
             "split": 1,
-            "horizons": [1, 2],
+            "horizons": [1, 2, 32],
             "windows_per_source": 2,
             "constraint_samples": 2,
             "mjcf_path": None,
@@ -125,6 +126,13 @@ def test_config_training_and_resume_restore_full_state(tmp_path, monkeypatch) ->
     config_path.write_text(yaml.safe_dump(config), encoding="utf-8")
     monkeypatch.setattr(sys, "argv", ["train_world_model.py", "--config", str(config_path)])
     train_world_model.main()
+
+    validation = json.loads(
+        (output / "validation.jsonl").read_text(encoding="utf-8").splitlines()[-1]
+    )
+    assert validation["sources"]["flat"]["metrics"]["32"]["status"] == "unavailable"
+    assert validation["sources"]["rotation"]["metrics"]["32"]["windows"] == 0
+    assert validation["overall"]["32"]["status"] == "unavailable"
 
     checkpoint_2 = output / "checkpoint_00000002.pt"
     first_payload = torch.load(checkpoint_2, map_location="cpu", weights_only=False)

@@ -235,3 +235,17 @@ git diff --check
   --actor logs/REPLACE_ACTOR/checkpoint_REPLACE.pt \
   --output logs/infantry_flat_online_sync_dryrun_REPLACE_01 \
   --dry-run
+
+
+# ============================================================
+# 15. 五轮在线闭环有效性实验
+# ============================================================
+# 用途：连续执行 5 轮；每轮为 Student 真实采集 2000 步、World Model 更新
+# 500 次、reward-only Actor 更新 500 次、单环境真实评测 1000 步。
+# 第 2 轮起自动使用上一轮最新 Actor；不会调用 Teacher ONNX 采集 Student 数据。
+# 输出目录必须替换成一个不存在的新目录。
+
+/opt/isaaclab-venv/bin/python tools/run_flat_online_cycle.py \
+  --config configs/infantry/online_flat_sync_5x.yaml \
+  --actor logs/REPLACE_ACTOR/checkpoint_REPLACE.pt \
+  --output logs/infantry_flat_online_sync_5x_REPLACE_01

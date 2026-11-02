@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import torch
 import yaml
 
 from tools import collect_isaaclab_student, run_flat_online_cycle
@@ -202,3 +203,92 @@ def test_dataset_contract_ignores_paths_but_rejects_dynamics(tmp_path) -> None:
     assert result["status"] == "compatible"
     with pytest.raises(ValueError, match="dynamics/control"):
         run_flat_online_cycle.validate_dataset_contracts([teacher, incompatible])
+
+
+def _student_dataset(path: Path, actor: Path) -> None:
+    path.mkdir()
+    torch.save(
+        {
+            "student_action": torch.zeros(2, 6),
+            "executed_action": torch.zeros(2, 6),
+            "applied_control": torch.zeros(2, 8),
+            "state": torch.zeros(2, 41),
+            "next_state": torch.ones(2, 41),
+            "terminated": torch.tensor([False, True]),
+            "episode_id": torch.tensor([0, 0]),
+            "run_id": torch.tensor([7, 7]),
+        },
+        path / "chunk_000000.pt",
+    )
+    (path / "manifest.json").write_text(
+        json.dumps(
+            {
+                "transitions": 2,
+                "metadata": {
+                    "student": {
+                        "checkpoint": str(actor),
+                        "sha256": run_flat_online_cycle.sha256_file(actor),
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_student_audit_binds_current_actor_and_terminal_next_state(tmp_path) -> None:
+    actor = tmp_path / "actor.pt"
+    actor.write_bytes(b"current actor")
+    dataset = tmp_path / "student"
+    _student_dataset(dataset, actor)
+    audit = run_flat_online_cycle.audit_student_dataset(dataset, actor)
+    assert audit["transitions"] == 2
+    assert audit["episodes"] == 1
+    assert audit["recorded_dimensions"]["applied_control"] == 8
+    wrong_actor = tmp_path / "wrong.pt"
+    wrong_actor.write_bytes(b"teacher or stale actor")
+    with pytest.raises(ValueError, match="current Actor"):
+        run_flat_online_cycle.audit_student_dataset(dataset, wrong_actor)
+
+
+def test_cycle_summary_reports_comparable_survival_gap(tmp_path) -> None:
+    layout = run_flat_online_cycle.cycle_layout(tmp_path, 1)
+    layout["world_model"].mkdir(parents=True)
+    layout["actor"].mkdir()
+    validation = {
+        "sources": {
+            "teacher": {"metrics": {"32": {"all_state_rmse": 1.0}}},
+            "student_cycle_0001": {
+                "split_summary": {"validation_episodes": 2},
+                "metrics": {"32": {"status": "unavailable", "windows": 0}},
+            },
+        }
+    }
+    (layout["world_model"] / "validation.jsonl").write_text(
+        json.dumps(validation) + "\n", encoding="utf-8"
+    )
+    (layout["actor"] / "train_log.jsonl").write_text(
+        json.dumps({"survival": 0.7, "wm_input_rms": 1.2}) + "\n",
+        encoding="utf-8",
+    )
+    layout["evaluation"].write_text(
+        json.dumps(
+            {
+                "model_survival_horizon_mean": 0.6,
+                "survival_horizon_fraction": 0.25,
+                "mean_episode_length": 23.0,
+                "fall_fraction": 1.0,
+                "forward_velocity_mae": 0.5,
+                "yaw_velocity_mae": 0.1,
+            }
+        ),
+        encoding="utf-8",
+    )
+    summary = run_flat_online_cycle.summarize_cycle(
+        layout, ["teacher"], "student_cycle_0001"
+    )
+    assert summary["model_survival_32"] == pytest.approx(0.6)
+    assert summary["training_mixture_model_survival_32"] == pytest.approx(0.7)
+    assert summary["real_survival_32"] == pytest.approx(0.25)
+    assert summary["survival_gap_absolute"] == pytest.approx(0.35)
+    assert summary["student_32_step_prediction"]["status"] == "unavailable"

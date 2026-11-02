@@ -1,0 +1,54 @@
+seed: 242
+device: cuda:0
+output: logs/infantry_flat_online_sync_5x
+cycles: 5
+
+asset_config: configs/infantry/collection/isaaclab_flat.yaml
+initial_world_model: results/world_model_shared_02/checkpoint_00070000.pt
+# Supply with --actor; policy checkpoints are run artifacts and are not committed.
+initial_actor: null
+
+teacher_datasets:
+  - name: flat_teacher
+    path: data/teacher_isaaclab_flat_final_05
+    weight: 3.0
+
+student_collection:
+  steps: 2000
+  max_episode_steps: 1000
+  chunk_steps: 128
+  split_seed: 2026
+  action_noise_std: 0.0
+  world_model_weight: 1.0
+  actor_start_weight: 1.0
+
+world_model:
+  hidden: [512, 512]
+  training:
+    iterations: 500
+    batch_size: 128
+    window: 8
+    learning_rate: 0.0001
+    normalizer_samples: 10000
+    max_grad_norm: 1.0
+    checkpoint_every: 500
+  validation:
+    interval: 500
+    split: 1
+    horizons: [1, 4, 8, 16, 32]
+    windows_per_source: 128
+    constraint_samples: 32
+    mjcf_path: mujoco390/mjcf/scene.xml
+
+actor:
+  base_config: configs/infantry/flat_policy_from_world_model.yaml
+  iterations: 500
+  batch_size: 256
+  checkpoint_every: 500
+  log_every: 25
+
+evaluation:
+  steps: 1000
+  vx: 1.0
+  yaw: 0.0
+  height: 0.2

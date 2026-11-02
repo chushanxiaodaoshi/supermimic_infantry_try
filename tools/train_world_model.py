@@ -364,6 +364,16 @@ def evaluate(
         has_phase = "motion_phase" in source.dataset.data
         fields = requested_fields if has_phase else requested_fields[:-1]
         for horizon in horizons:
+            if not source.dataset.has_windows(split, horizon):
+                source_report["metrics"][str(horizon)] = {
+                    "status": "unavailable",
+                    "reason": (
+                        f"no split={split} episode contains a valid "
+                        f"{horizon}-step window"
+                    ),
+                    "windows": 0,
+                }
+                continue
             batch = source.dataset.sample_windows(
                 batch_size,
                 horizon,
@@ -401,15 +411,23 @@ def evaluate(
         report["sources"][source.name] = source_report
 
     for horizon, parts in overall_errors.items():
+        if not parts:
+            report["overall"][str(horizon)] = {
+                "status": "unavailable",
+                "reason": f"no source has a valid {horizon}-step window",
+                "windows": 0,
+            }
+            continue
         report["overall"][str(horizon)] = {
             **_metric_row(torch.cat(parts)),
             "windows": sum(len(part) for part in parts),
         }
-    if "1" in report["overall"] and len(horizons) > 1:
+    if report["overall"].get("1", {}).get("status") != "unavailable" and len(horizons) > 1:
         baseline = max(report["overall"]["1"]["all_state_rmse"], 1.0e-12)
         report["rollout_growth_vs_step_1"] = {
             str(horizon): report["overall"][str(horizon)]["all_state_rmse"] / baseline
             for horizon in horizons
+            if report["overall"][str(horizon)].get("status") != "unavailable"
         }
     model.train()
     return report
@@ -525,7 +543,7 @@ def main() -> None:
     for source in sources:
         for split, label, required_window in (
             (0, "training", window),
-            (int(validation.get("split", 1)), "validation", max(horizons)),
+            (int(validation.get("split", 1)), "validation", min(horizons)),
         ):
             if not source.dataset.has_windows(split, required_window):
                 raise ValueError(

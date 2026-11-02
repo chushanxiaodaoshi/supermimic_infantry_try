@@ -35,7 +35,7 @@ world_model:
   validation:
     interval: 10
     split: 1
-    horizons: [1, 4, 8]
+    horizons: [1, 4, 8, 16, 32]
     windows_per_source: 32
     constraint_samples: 16
     mjcf_path: mujoco390/mjcf/scene.xml

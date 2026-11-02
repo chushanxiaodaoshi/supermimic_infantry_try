@@ -34,3 +34,27 @@ Student 的动力学/控制语义检查通过。Student 验证集上的 World Mo
 为 1 步 3.36、4 步 4.35、8 步 6.31；独立真实评测 200 步内完成 9 个 episode，
 9 个均跌倒，平均长度 21 步，前向速度 MAE 0.646、yaw MAE 0.077。因此本轮验收的是
 同步在线管线和数据契约，不是平地策略性能；没有继续启动长任务。
+
+## 五轮有效性实验
+
+`configs/infantry/online_flat_sync_5x.yaml` 每轮采集 2,000 步、更新 World Model
+500 次、更新 reward-only Actor 500 次，并做 1,000 步单环境真实评测，共 5 轮。
+第 2 轮起，采集器严格使用上一轮 Actor checkpoint；采集后会核对 checkpoint SHA，
+并检查 6 维 Student/执行动作、8 维实际控制以及终止 reset 前的 41 维 next_state。
+
+World Model 对每个 Teacher/Student 数据源分别报告 1/4/8/16/32 步验证误差。
+短于 32 步的 episode 不会跨 reset 拼接；没有合法窗口时报告 `unavailable`。真实评测
+还会从每个 episode 的同一初始状态、历史和 command 做一次模型内 32 步 rollout，
+因此 `model_real_survival_gap_absolute` 与真实 survival 可以直接比较。逐轮摘要保存在
+`online_manifest.json` 的 `summary` 中。
+
+```bash
+/opt/isaaclab-venv/bin/python tools/run_flat_online_cycle.py \
+  --config configs/infantry/online_flat_sync_5x.yaml \
+  --actor /path/to/current_actor_checkpoint.pt \
+  --output logs/infantry_flat_online_sync_5x_NEW
+```
+
+第一道验收线是：真实平均 episode 长度持续上升、模型/真实 32 步 survival 差距持续
+缩小、Student 32 步预测误差在出现合法窗口后持续下降。若 3–5 轮后寿命仍停留在
+20 多步，应转向初始状态覆盖、显式终止成本或真实数据覆盖设计，不继续机械增加轮数。
