@@ -14,7 +14,16 @@ python run_policy.py --rough-onnx "./onnx/rough.onnx" --jump-onnx "./onnx/jump.o
 ```
 
 默认使用本目录 `mjcf/scene.xml`、`mjcf/assets/` 和 `initial_state.npz`。
-XML 是一份独立副本，包含原机器人、平面、台阶和斜坡，不会自动生成随机地形。
+`scene.xml` 只有一个位于 z=0 的无限平面，作为 Teacher 数据采集和策略训练的标准
+场景，不包含隐藏的台阶、高度场或斜坡。
+
+原有复杂场景完整保留为 `mjcf/scene_validation_terrain.xml`，只用于后续地形泛化验证：
+
+```powershell
+python run_policy.py --xml ./mjcf/scene_validation_terrain.xml
+```
+
+验证场景不会被默认训练配置加载。其布局如下：
 主场地是12×12m紧凑九宫格，范围x=2..14m、y=-6..6m，每块4×4m，
 相邻地块直接拼接；随机起伏移到侧边(0,+4)，含侧边总范围16×12m。
 出生点附近仍是平地。无需额外参数。

@@ -19,6 +19,8 @@ from pynput import keyboard
 
 
 ROOT = Path(__file__).resolve().parent
+FLAT_SCENE = ROOT / "mjcf/scene.xml"
+VALIDATION_TERRAIN_SCENE = ROOT / "mjcf/scene_validation_terrain.xml"
 
 # Debug settings: edit these two values directly when needed.
 DEBUG_POLICY = True
@@ -146,7 +148,7 @@ def parse_args() -> argparse.Namespace:
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument("--onnx", "--rough-onnx", type=Path, default=onnx)
   parser.add_argument("--jump-onnx", type=Path, default=jump_onnx)
-  parser.add_argument("--xml", type=Path, default=ROOT / "mjcf/scene.xml")
+  parser.add_argument("--xml", type=Path, default=FLAT_SCENE)
   parser.add_argument("--state", type=Path, default=None)
   parser.add_argument("--vx", type=float, default=0.0)
   parser.add_argument("--yaw", type=float, default=0.0)
@@ -1068,7 +1070,11 @@ def main() -> None:
     set_explicit_standup_initial_pose(model, data)
   else:
     state = args.state
-    if state is None and args.xml.resolve() == (ROOT / "mjcf/scene.xml").resolve():
+    bundled_scenes = {
+      FLAT_SCENE.resolve(),
+      VALIDATION_TERRAIN_SCENE.resolve(),
+    }
+    if state is None and args.xml.resolve() in bundled_scenes:
       state = ROOT / "initial_state.npz"
     if state is not None:
       with np.load(state) as initial:

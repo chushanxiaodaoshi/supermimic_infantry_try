@@ -29,8 +29,8 @@ def fake_session(width=150, action=None):
   )
 
 
-def make_runtime(action=None, jump_policy=None):
-  model = mujoco.MjModel.from_xml_path(str(ROOT / "mjcf/scene.xml"))
+def make_runtime(action=None, jump_policy=None, scene="scene.xml"):
+  model = mujoco.MjModel.from_xml_path(str(ROOT / "mjcf" / scene))
   data = mujoco.MjData(model)
   with np.load(ROOT / "initial_state.npz") as initial:
     data.qpos[:] = initial["qpos"]
@@ -138,8 +138,22 @@ class KeyboardStateStub:
   height = 0.2
 
 
-def test_rm_course_heights_collision_masks_and_gaps():
+def test_default_training_scene_is_one_infinite_flat_plane():
   runtime = make_runtime()
+  model = runtime.model
+  terrain = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "terrain")
+  assert model.geom_type[terrain] == mujoco.mjtGeom.mjGEOM_PLANE
+  np.testing.assert_allclose(model.geom_pos[terrain], [0.0, 0.0, 0.0])
+  assert model.nhfield == 0
+  names = {
+    mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_GEOM, index) or ""
+    for index in range(model.ngeom)
+  }
+  assert not any(name.startswith(("rm_", "classic_")) for name in names)
+
+
+def test_rm_course_heights_collision_masks_and_gaps():
+  runtime = make_runtime(scene="scene_validation_terrain.xml")
   model, data = runtime.model, runtime.data
   terrain_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "terrain")
   for index in range(model.ngeom):
@@ -170,7 +184,7 @@ def test_rm_course_heights_collision_masks_and_gaps():
 
 
 def test_classic_terrain_pits_are_not_filled_by_ground_and_tiles_are_compact():
-  runtime = make_runtime()
+  runtime = make_runtime(scene="scene_validation_terrain.xml")
   model, data = runtime.model, runtime.data
 
   def height(x, y):
