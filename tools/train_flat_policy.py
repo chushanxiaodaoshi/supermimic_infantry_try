@@ -40,7 +40,16 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--world-model", type=Path)
-    parser.add_argument("--resume", type=Path)
+    checkpoint_mode = parser.add_mutually_exclusive_group()
+    checkpoint_mode.add_argument("--resume", type=Path)
+    checkpoint_mode.add_argument(
+        "--init-from",
+        type=Path,
+        help=(
+            "Warm-start Actor weights/normalizer with a new World Model and "
+            "reset optimizer/iteration state."
+        ),
+    )
     parser.add_argument("--output", type=Path)
     parser.add_argument("--device")
     parser.add_argument("--iterations", type=int)
@@ -226,6 +235,36 @@ def critic_bootstrap_weight(iteration: int, warmup: int, ramp: int) -> float:
     return min((completed - warmup) / ramp, 1.0)
 
 
+def initialize_actor_from_checkpoint(
+    path: Path,
+    actor: UnifiedActor,
+    cfg: dict[str, Any],
+    device: torch.device,
+) -> dict[str, Any]:
+    """Load deployable Actor state while starting a new optimization stage."""
+    payload = torch.load(path, map_location=device, weights_only=False)
+    if payload.get("robot_spec") != asdict(INFANTRY_SPEC):
+        raise ValueError("Actor initialization checkpoint uses an incompatible robot spec")
+    source_cfg = _mapping(payload.get("config"), "Actor checkpoint config")
+    source_actor = _mapping(source_cfg.get("actor"), "Actor checkpoint actor config")
+    architecture_keys = ("hidden", "history", "output_limit")
+    expected = {key: cfg["actor"].get(key) for key in architecture_keys}
+    actual = {key: source_actor.get(key) for key in architecture_keys}
+    if actual != expected:
+        raise ValueError(
+            f"Actor initialization architecture differs: source={actual}, target={expected}"
+        )
+    actor.load_state_dict(payload["actor"], strict=True)
+    return {
+        "mode": "actor_warm_start",
+        "checkpoint": str(path),
+        "checkpoint_sha256": sha256_file(path),
+        "source_iteration": int(payload.get("iteration", 0)),
+        "optimizer": "reset",
+        "actor_normalizer": "preserved",
+    }
+
+
 def save_checkpoint(
     path: Path,
     *,
@@ -275,6 +314,10 @@ def main() -> None:
 
     output = _resolve(cfg["output"])
     resume = args.resume.expanduser().resolve() if args.resume else None
+    init_from = args.init_from.expanduser().resolve() if args.init_from else None
+    for label, checkpoint in (("resume", resume), ("init-from", init_from)):
+        if checkpoint is not None and not checkpoint.is_file():
+            raise FileNotFoundError(f"{label} checkpoint: {checkpoint}")
     if output.exists() and any(output.iterdir()) and resume is None:
         raise FileExistsError(f"output must be empty for a new run: {output}")
     output.mkdir(parents=True, exist_ok=True)
@@ -322,20 +365,14 @@ def main() -> None:
     resolved_cfg["datasets"] = [
         {**item, "path": str(_resolve(item["path"]))} for item in cfg["datasets"]
     ]
+    if init_from is not None:
+        resolved_cfg["initialization"] = {
+            "mode": "actor_warm_start",
+            "checkpoint": str(init_from),
+        }
     resolved_path = output / "resolved_config.yaml"
 
-    if resume is None:
-        fit_actor_normalizer(
-            actor,
-            dataset,
-            samples=int(actor_cfg.get("normalizer_samples", 100_000)),
-            batch_size=int(training.get("batch_size", 4096)),
-            device=device,
-        )
-        resolved_path.write_text(
-            yaml.safe_dump(resolved_cfg, sort_keys=False), encoding="utf-8"
-        )
-    else:
+    if resume is not None:
         payload = torch.load(resume, map_location=device, weights_only=False)
         expected_hash = payload["world_model"]["sha256"]
         if sha256_file(world_model_path) != expected_hash:
@@ -351,6 +388,26 @@ def main() -> None:
         _restore_rng(payload["rng"], dataset)
         start_iteration = int(payload["iteration"])
         elapsed_offset = float(payload.get("elapsed_seconds", 0.0))
+    elif init_from is not None:
+        initialization = initialize_actor_from_checkpoint(
+            init_from, actor, resolved_cfg, device
+        )
+        resolved_cfg["initialization"].update(initialization)
+        resolved_path.write_text(
+            yaml.safe_dump(resolved_cfg, sort_keys=False), encoding="utf-8"
+        )
+        print(json.dumps({"status": "initialized", **initialization}), flush=True)
+    else:
+        fit_actor_normalizer(
+            actor,
+            dataset,
+            samples=int(actor_cfg.get("normalizer_samples", 100_000)),
+            batch_size=int(training.get("batch_size", 4096)),
+            device=device,
+        )
+        resolved_path.write_text(
+            yaml.safe_dump(resolved_cfg, sort_keys=False), encoding="utf-8"
+        )
 
     weights = FlatRewardWeights(**cfg["reward"].get("weights", {}))
     joint_lower = torch.tensor(

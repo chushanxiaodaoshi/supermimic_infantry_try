@@ -153,6 +153,39 @@ def test_flat_policy_training_and_resume(tmp_path, monkeypatch) -> None:
         action = actor(torch.zeros(3, 5, INFANTRY_SPEC.actor_obs_dim))
     assert action.shape == (3, INFANTRY_SPEC.policy_action_dim)
 
+    next_world_model = tmp_path / "next_world_model.pt"
+    _write_world_model(next_world_model)
+    warm_output = tmp_path / "policy_warm"
+    warm_config = yaml.safe_load(yaml.safe_dump(config))
+    warm_config["output"] = str(warm_output)
+    warm_config["world_model"]["checkpoint"] = str(next_world_model)
+    warm_config["training"]["iterations"] = 1
+    warm_config["training"]["learning_rate"] = 0.0
+    warm_path = tmp_path / "policy_warm.yaml"
+    warm_path.write_text(yaml.safe_dump(warm_config), encoding="utf-8")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "train_flat_policy.py",
+            "--config",
+            str(warm_path),
+            "--init-from",
+            str(output / "checkpoint_00000002.pt"),
+        ],
+    )
+    train_flat_policy.main()
+    warm = torch.load(
+        warm_output / "checkpoint_00000001.pt",
+        map_location="cpu",
+        weights_only=False,
+    )
+    assert warm["config"]["initialization"]["source_iteration"] == 2
+    assert warm["config"]["initialization"]["optimizer"] == "reset"
+    assert warm["world_model"]["sha256"] != resumed["world_model"]["sha256"]
+    for name, value in resumed["actor"].items():
+        torch.testing.assert_close(warm["actor"][name], value)
+
 
 def test_critic_bootstrap_schedule_delays_actor_bootstrap() -> None:
     assert train_flat_policy.critic_bootstrap_weight(0, 2, 2) == 0.0

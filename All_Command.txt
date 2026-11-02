@@ -213,3 +213,25 @@ nvidia-smi
 
 git status --short
 git diff --check
+
+
+# ============================================================
+# 14. Isaac/Newton 平地在线同步闭环（小规模）
+# ============================================================
+# 用途：依次执行 Student 真实仿真采集、Teacher/Student 混合更新 World Model、
+# 32 步 reward-only Actor 更新和单环境真实评测。这里不使用 BC。
+# 必须把 --actor 和 --output 改成当前 checkpoint 与全新的输出目录。
+# 默认 smoke 只跑 1 轮，不会启动 10 万轮长任务。
+
+/opt/isaaclab-venv/bin/python tools/run_flat_online_cycle.py \
+  --config configs/infantry/online_flat_sync_smoke.yaml \
+  --actor logs/REPLACE_ACTOR/checkpoint_REPLACE.pt \
+  --output logs/infantry_flat_online_sync_REPLACE_01
+
+# 用途：只生成并检查四阶段计划，不启动仿真或训练。
+
+/opt/isaaclab-venv/bin/python tools/run_flat_online_cycle.py \
+  --config configs/infantry/online_flat_sync_smoke.yaml \
+  --actor logs/REPLACE_ACTOR/checkpoint_REPLACE.pt \
+  --output logs/infantry_flat_online_sync_dryrun_REPLACE_01 \
+  --dry-run
