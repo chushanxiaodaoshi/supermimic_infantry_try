@@ -1,0 +1,627 @@
+#usda 1.0
+(
+    customLayerData = {
+        string creator = "MuJoCo USD Converter v0.6.1"
+    }
+    defaultPrim = "tn__Fudan2026Balance_vNA"
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+over "tn__Fudan2026Balance_vNA"
+{
+    over "Geometry"
+    {
+        over "base_link" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "NewtonMassAPI", "PhysicsArticulationRootAPI", "NewtonArticulationRootAPI"]
+        )
+        {
+            double[] newton:inertia = [0.3595155, 0.35249, 0.45655, -0.00174358, 0.00825907, 0.00214156]
+            uniform bool newton:jointsAddMobility = 1
+            bool newton:selfCollisionEnabled = 0
+            point3f physics:centerOfMass = (0.0040606, -0.0008523, 0.09714204)
+            float3 physics:diagonalInertia = (0.45728564, 0.35935047, 0.35191938)
+            float physics:mass = 16.877575
+            quatf physics:principalAxes = (0.58996415, 0.4402887, -0.53461754, 0.41505697)
+
+            over "imu_site" (
+                prepend apiSchemas = ["NewtonSiteAPI"]
+            )
+            {
+            }
+
+            over "forward_rangefinder_site" (
+                prepend apiSchemas = ["NewtonSiteAPI"]
+            )
+            {
+            }
+
+            over "Left_virtual_hip_site" (
+                prepend apiSchemas = ["NewtonSiteAPI"]
+            )
+            {
+            }
+
+            over "Right_virtual_hip_site" (
+                prepend apiSchemas = ["NewtonSiteAPI"]
+            )
+            {
+            }
+
+            over "Left_rear_link" (
+                prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+            )
+            {
+                point3f physics:centerOfMass = (0.0552763, -0.0165544, -0.00927161)
+                float3 physics:diagonalInertia = (0.00641833, 0.00468513, 0.00204569)
+                float physics:mass = 1.1132
+                quatf physics:principalAxes = (-0.0051760003, 0.69317305, 0.054435708, 0.71869403)
+
+                over "Left_rear_site1" (
+                    prepend apiSchemas = ["NewtonSiteAPI"]
+                )
+                {
+                }
+
+                over "right_lf0_qitanhuang" (
+                    prepend apiSchemas = ["NewtonSiteAPI"]
+                )
+                {
+                }
+
+                over "Left_rear_child1_link" (
+                    prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+                )
+                {
+                    point3f physics:centerOfMass = (-0.00283459, -0.0710676, 0.0068255)
+                    float3 physics:diagonalInertia = (0.0025405, 0.00248016, 0.000085602)
+                    float physics:mass = 0.306873
+                    quatf physics:principalAxes = (0.483182, 0.50274, -0.490133, 0.523027)
+
+                    over "Left_rear_site2" (
+                        prepend apiSchemas = ["NewtonSiteAPI"]
+                    )
+                    {
+                    }
+
+                    over "right_lf1_qitanhuang" (
+                        prepend apiSchemas = ["NewtonSiteAPI"]
+                    )
+                    {
+                    }
+
+                    over "Left_Wheel_link" (
+                        prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+                    )
+                    {
+                        point3f physics:centerOfMass = (-0.00017762, -0.00010174, 0.0099965)
+                        float3 physics:diagonalInertia = (0.0011941902, 0.00062945235, 0.0006253326)
+                        float physics:mass = 0.71
+                        quatf physics:principalAxes = (-0.51194644, 0.48782912, 0.5119122, 0.48772898)
+
+                        over "Left_wheel_collision" (
+                            prepend apiSchemas = ["NewtonCollisionAPI", "PhysicsMassAPI"]
+                        )
+                        {
+                            float newton:contactGap = 0
+                            float physics:density = 1000
+                        }
+
+                        over "Left_wheel_axis_site" (
+                            prepend apiSchemas = ["NewtonSiteAPI"]
+                        )
+                        {
+                        }
+
+                        def PhysicsRevoluteJoint "Left_Wheel_joint" (
+                            prepend apiSchemas = ["NewtonJointAPI", "PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                        )
+                        {
+                            float drive:angular:physics:maxForce = 4
+                            float newton:damping = 0.000034906585
+                            float newton:friction = 0.001
+                            uniform token physics:axis = "Z"
+                            custom rel physics:body0
+                            append rel physics:body0 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Left_rear_link/Left_rear_child1_link>
+                            custom rel physics:body1
+                            append rel physics:body1 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Left_rear_link/Left_rear_child1_link/Left_Wheel_link>
+                            point3f physics:localPos0 = (-2.7755576e-17, -0.208, 0.016)
+                            point3f physics:localPos1 = (0, 0, 0)
+                            quatf physics:localRot0 = (1, 0, 0, 0)
+                            quatf physics:localRot1 = (1, 0, 0, 0)
+                        }
+                    }
+
+                    def PhysicsRevoluteJoint "Left_rear_child1_joint" (
+                        prepend apiSchemas = ["NewtonJointAPI", "PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                    )
+                    {
+                        float newton:damping = 0.00052359875
+                        float newton:friction = 0.015
+                        uniform token physics:axis = "Z"
+                        custom rel physics:body0
+                        append rel physics:body0 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Left_rear_link>
+                        custom rel physics:body1
+                        append rel physics:body1 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Left_rear_link/Left_rear_child1_link>
+                        point3f physics:localPos0 = (0.17472, 0, 0)
+                        point3f physics:localPos1 = (0, 0, 0)
+                        quatf physics:localRot0 = (1, 0, 0, 0)
+                        quatf physics:localRot1 = (1, 0, 0, 0)
+                        float physics:lowerLimit = -63.025356
+                        float physics:upperLimit = 36.09634
+                    }
+                }
+
+                def PhysicsRevoluteJoint "Left_rear_joint" (
+                    prepend apiSchemas = ["NewtonJointAPI", "PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                )
+                {
+                    float drive:angular:physics:maxForce = 20
+                    float newton:damping = 0.00052359875
+                    float newton:friction = 0.015
+                    uniform token physics:axis = "Z"
+                    custom rel physics:body0
+                    append rel physics:body0 = </tn__Fudan2026Balance_vNA/Geometry/base_link>
+                    custom rel physics:body1
+                    append rel physics:body1 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Left_rear_link>
+                    point3f physics:localPos0 = (0, 0.1877, 0.08725)
+                    point3f physics:localPos1 = (0, 0, 0)
+                    quatf physics:localRot0 = (6.123234e-17, -8.152796e-17, 0.70710826, 0.7071053)
+                    quatf physics:localRot1 = (1, 0, 0, 0)
+                    float physics:lowerLimit = -5729.578
+                    float physics:upperLimit = 5729.578
+                }
+            }
+
+            over "Right_rear_link" (
+                prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+            )
+            {
+                point3f physics:centerOfMass = (0.055403, 0.016584, -0.0092702)
+                float3 physics:diagonalInertia = (0.00641157, 0.0046755, 0.00204815)
+                float physics:mass = 1.1128
+                quatf physics:principalAxes = (0.0046348404, 0.6930991, -0.053838104, 0.7188141)
+
+                over "Right_rear_site1" (
+                    prepend apiSchemas = ["NewtonSiteAPI"]
+                )
+                {
+                }
+
+                over "left_lf0_qitanhuang" (
+                    prepend apiSchemas = ["NewtonSiteAPI"]
+                )
+                {
+                }
+
+                over "Right_rear_child1_link" (
+                    prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+                )
+                {
+                    point3f physics:centerOfMass = (-0.0028358, 0.071068, 0.0068255)
+                    float3 physics:diagonalInertia = (0.0025405, 0.00248016, 0.000085602)
+                    float physics:mass = 0.30687
+                    quatf physics:principalAxes = (0.50274, 0.483182, -0.523027, 0.490133)
+
+                    over "Right_rear_site2" (
+                        prepend apiSchemas = ["NewtonSiteAPI"]
+                    )
+                    {
+                    }
+
+                    over "left_lf1_qitanhuang" (
+                        prepend apiSchemas = ["NewtonSiteAPI"]
+                    )
+                    {
+                    }
+
+                    over "Right_Wheel_link" (
+                        prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+                    )
+                    {
+                        point3f physics:centerOfMass = (-0.00015229, 0.00013677, 0.0099965)
+                        float3 physics:diagonalInertia = (0.0011941902, 0.0006294551, 0.00062532985)
+                        float physics:mass = 0.71
+                        quatf physics:principalAxes = (0.12923156, 0.69515884, 0.12931782, -0.6952197)
+
+                        over "Right_wheel_collision" (
+                            prepend apiSchemas = ["NewtonCollisionAPI", "PhysicsMassAPI"]
+                        )
+                        {
+                            float newton:contactGap = 0
+                            float physics:density = 1000
+                        }
+
+                        over "Right_wheel_axis_site" (
+                            prepend apiSchemas = ["NewtonSiteAPI"]
+                        )
+                        {
+                        }
+
+                        def PhysicsRevoluteJoint "Right_Wheel_joint" (
+                            prepend apiSchemas = ["NewtonJointAPI", "PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                        )
+                        {
+                            float drive:angular:physics:maxForce = 4
+                            float newton:damping = 0.000034906585
+                            float newton:friction = 0.001
+                            uniform token physics:axis = "Z"
+                            custom rel physics:body0
+                            append rel physics:body0 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Right_rear_link/Right_rear_child1_link>
+                            custom rel physics:body1
+                            append rel physics:body1 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Right_rear_link/Right_rear_child1_link/Right_Wheel_link>
+                            point3f physics:localPos0 = (0, 0.208, 0.016)
+                            point3f physics:localPos1 = (0, 0, 0)
+                            quatf physics:localRot0 = (1, 0, 0, 0)
+                            quatf physics:localRot1 = (1, 0, 0, 0)
+                        }
+                    }
+
+                    def PhysicsRevoluteJoint "Right_rear_child1_joint" (
+                        prepend apiSchemas = ["NewtonJointAPI", "PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                    )
+                    {
+                        float newton:damping = 0.00052359875
+                        float newton:friction = 0.015
+                        uniform token physics:axis = "Z"
+                        custom rel physics:body0
+                        append rel physics:body0 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Right_rear_link>
+                        custom rel physics:body1
+                        append rel physics:body1 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Right_rear_link/Right_rear_child1_link>
+                        point3f physics:localPos0 = (0.17472, 0, 0)
+                        point3f physics:localPos1 = (0, 0, 0)
+                        quatf physics:localRot0 = (1, 0, 0, 0)
+                        quatf physics:localRot1 = (1, 0, 0, 0)
+                        float physics:lowerLimit = -36.09634
+                        float physics:upperLimit = 63.025356
+                    }
+                }
+
+                def PhysicsRevoluteJoint "Right_rear_joint" (
+                    prepend apiSchemas = ["NewtonJointAPI", "PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                )
+                {
+                    float drive:angular:physics:maxForce = 20
+                    float newton:damping = 0.00052359875
+                    float newton:friction = 0.015
+                    uniform token physics:axis = "Z"
+                    custom rel physics:body0
+                    append rel physics:body0 = </tn__Fudan2026Balance_vNA/Geometry/base_link>
+                    custom rel physics:body1
+                    append rel physics:body1 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Right_rear_link>
+                    point3f physics:localPos0 = (0, -0.1877, 0.08725)
+                    point3f physics:localPos1 = (0, 0, 0)
+                    quatf physics:localRot0 = (6.123234e-17, -1.2127353e-17, 0.70710826, -0.7071053)
+                    quatf physics:localRot1 = (1, 0, 0, 0)
+                    float physics:lowerLimit = -5729.578
+                    float physics:upperLimit = 5729.578
+                }
+            }
+
+            over "Left_front_link" (
+                prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+            )
+            {
+                point3f physics:centerOfMass = (-0.0077129, -0.044014, 0.0053168)
+                float3 physics:diagonalInertia = (0.000101653, 0.0000909634, 0.0000115321)
+                float physics:mass = 0.058433
+                quatf physics:principalAxes = (0.54286987, 0.45359787, -0.5399949, 0.4560119)
+
+                over "Left_front_child1_link" (
+                    prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+                )
+                {
+                    point3f physics:centerOfMass = (0.05374, -0.013258, -0.01451)
+                    float3 physics:diagonalInertia = (0.0000783158, 0.0000761359, 0.00000277956)
+                    float physics:mass = 0.042999
+                    quatf physics:principalAxes = (0.06904414, 0.7047725, -0.056011837, 0.7038405)
+
+                    over "Left_front_child2_link" (
+                        prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+                    )
+                    {
+                        point3f physics:centerOfMass = (-0.006381, 0.08888, -0.0045)
+                        float3 physics:diagonalInertia = (0.00021104, 0.000205523, 0.00000641108)
+                        float physics:mass = 0.065877
+                        quatf physics:principalAxes = (0.47575268, 0.52312464, -0.47575268, 0.52312464)
+
+                        over "Left_front_site1" (
+                            prepend apiSchemas = ["NewtonSiteAPI"]
+                        )
+                        {
+                        }
+
+                        over "Left_front_child3_link" (
+                            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+                        )
+                        {
+                            point3f physics:centerOfMass = (0.040186, 0, -0.014509)
+                            float3 physics:diagonalInertia = (0.000010337, 0.0000098695, 6.2034e-7)
+                            float physics:mass = 0.010945
+                            quatf physics:principalAxes = (0, 0.7071068, 0, 0.7071068)
+
+                            over "Left_front_site2" (
+                                prepend apiSchemas = ["NewtonSiteAPI"]
+                            )
+                            {
+                            }
+
+                            def PhysicsRevoluteJoint "Left_front_child3_joint" (
+                                prepend apiSchemas = ["NewtonJointAPI", "PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                            )
+                            {
+                                uniform token physics:axis = "Z"
+                                custom rel physics:body0
+                                append rel physics:body0 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Left_front_link/Left_front_child1_link/Left_front_child2_link>
+                                custom rel physics:body1
+                                append rel physics:body1 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Left_front_link/Left_front_child1_link/Left_front_child2_link/Left_front_child3_link>
+                                point3f physics:localPos0 = (-0.018032, 0.17268, 0)
+                                point3f physics:localPos1 = (0, 0, 0)
+                                quatf physics:localRot0 = (1, 0, 0, 0)
+                                quatf physics:localRot1 = (1, 0, 0, 0)
+                            }
+                        }
+
+                        def PhysicsRevoluteJoint "Left_front_child2_joint" (
+                            prepend apiSchemas = ["NewtonJointAPI", "PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                        )
+                        {
+                            uniform token physics:axis = "Z"
+                            custom rel physics:body0
+                            append rel physics:body0 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Left_front_link/Left_front_child1_link>
+                            custom rel physics:body1
+                            append rel physics:body1 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Left_front_link/Left_front_child1_link/Left_front_child2_link>
+                            point3f physics:localPos0 = (0.11063, -0.019387, 0)
+                            point3f physics:localPos1 = (0, 0, 0)
+                            quatf physics:localRot0 = (1, 0, 0, 0)
+                            quatf physics:localRot1 = (1, 0, 0, 0)
+                        }
+                    }
+
+                    def PhysicsRevoluteJoint "Left_front_child1_joint" (
+                        prepend apiSchemas = ["NewtonJointAPI", "PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                    )
+                    {
+                        uniform token physics:axis = "Z"
+                        custom rel physics:body0
+                        append rel physics:body0 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Left_front_link>
+                        custom rel physics:body1
+                        append rel physics:body1 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Left_front_link/Left_front_child1_link>
+                        point3f physics:localPos0 = (-0.016285, -0.092933, 0.01)
+                        point3f physics:localPos1 = (0, 0, 0)
+                        quatf physics:localRot0 = (1, 0, 0, 0)
+                        quatf physics:localRot1 = (1, 0, 0, 0)
+                    }
+                }
+
+                def PhysicsRevoluteJoint "Left_front_joint" (
+                    prepend apiSchemas = ["NewtonJointAPI", "PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                )
+                {
+                    float drive:angular:physics:maxForce = 20
+                    float newton:damping = 0.00052359875
+                    float newton:friction = 0.015
+                    uniform token physics:axis = "Z"
+                    custom rel physics:body0
+                    append rel physics:body0 = </tn__Fudan2026Balance_vNA/Geometry/base_link>
+                    custom rel physics:body1
+                    append rel physics:body1 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Left_front_link>
+                    point3f physics:localPos0 = (0, 0.1877, 0.08725)
+                    point3f physics:localPos1 = (0, 0, 0)
+                    quatf physics:localRot0 = (6.123234e-17, -8.152796e-17, 0.70710826, 0.7071053)
+                    quatf physics:localRot1 = (1, 0, 0, 0)
+                }
+            }
+
+            over "Right_front_link" (
+                prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+            )
+            {
+                point3f physics:centerOfMass = (-0.0077129, -0.044014, 0.0053168)
+                float3 physics:diagonalInertia = (0.0000783158, 0.0000761355, 0.00000277958)
+                float physics:mass = 0.058433
+                quatf physics:principalAxes = (-0.06647597, 0.70519364, 0.053480875, 0.70386267)
+
+                over "Right_front_child1_link" (
+                    prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+                )
+                {
+                    point3f physics:centerOfMass = (0.055588, 0.013582, -0.01451)
+                    float3 physics:diagonalInertia = (0.0000783158, 0.0000761355, 0.00000277958)
+                    float physics:mass = 0.042999
+                    quatf physics:principalAxes = (-0.06647597, 0.70519364, 0.053480875, 0.70386267)
+
+                    over "Right_front_child2_link" (
+                        prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+                    )
+                    {
+                        point3f physics:centerOfMass = (-0.006381, -0.08888, -0.0045)
+                        float3 physics:diagonalInertia = (0.00021104, 0.000205523, 0.00000641108)
+                        float physics:mass = 0.065877
+                        quatf physics:principalAxes = (0.52312464, 0.47575268, -0.52312464, 0.47575268)
+
+                        over "Right_front_site1" (
+                            prepend apiSchemas = ["NewtonSiteAPI"]
+                        )
+                        {
+                        }
+
+                        over "Right_front_child3_link" (
+                            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+                        )
+                        {
+                            point3f physics:centerOfMass = (0.040186, 0, -0.014509)
+                            float3 physics:diagonalInertia = (0.000010337, 0.0000098695, 6.2034e-7)
+                            float physics:mass = 0.010945
+                            quatf physics:principalAxes = (0, 0.7071068, 0, 0.7071068)
+
+                            over "Right_front_site2" (
+                                prepend apiSchemas = ["NewtonSiteAPI"]
+                            )
+                            {
+                            }
+
+                            def PhysicsRevoluteJoint "Right_front_joint3_joint" (
+                                prepend apiSchemas = ["NewtonJointAPI", "PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                            )
+                            {
+                                uniform token physics:axis = "Z"
+                                custom rel physics:body0
+                                append rel physics:body0 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Right_front_link/Right_front_child1_link/Right_front_child2_link>
+                                custom rel physics:body1
+                                append rel physics:body1 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Right_front_link/Right_front_child1_link/Right_front_child2_link/Right_front_child3_link>
+                                point3f physics:localPos0 = (-0.018032, -0.17268, 0)
+                                point3f physics:localPos1 = (0, 0, 0)
+                                quatf physics:localRot0 = (1, 0, 0, 0)
+                                quatf physics:localRot1 = (1, 0, 0, 0)
+                            }
+                        }
+
+                        def PhysicsRevoluteJoint "Right_front_child2_joint" (
+                            prepend apiSchemas = ["NewtonJointAPI", "PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                        )
+                        {
+                            uniform token physics:axis = "Z"
+                            custom rel physics:body0
+                            append rel physics:body0 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Right_front_link/Right_front_child1_link>
+                            custom rel physics:body1
+                            append rel physics:body1 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Right_front_link/Right_front_child1_link/Right_front_child2_link>
+                            point3f physics:localPos0 = (0.11063, 0.019387, 0)
+                            point3f physics:localPos1 = (0, 0, 0)
+                            quatf physics:localRot0 = (1, 0, 0, 0)
+                            quatf physics:localRot1 = (1, 0, 0, 0)
+                        }
+                    }
+
+                    def PhysicsRevoluteJoint "Right_front_child1_joint" (
+                        prepend apiSchemas = ["NewtonJointAPI", "PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                    )
+                    {
+                        uniform token physics:axis = "Z"
+                        custom rel physics:body0
+                        append rel physics:body0 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Right_front_link>
+                        custom rel physics:body1
+                        append rel physics:body1 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Right_front_link/Right_front_child1_link>
+                        point3f physics:localPos0 = (-0.016285, 0.092933, 0.01)
+                        point3f physics:localPos1 = (0, 0, 0)
+                        quatf physics:localRot0 = (1, 0, 0, 0)
+                        quatf physics:localRot1 = (1, 0, 0, 0)
+                    }
+                }
+
+                def PhysicsRevoluteJoint "Right_front_joint" (
+                    prepend apiSchemas = ["NewtonJointAPI", "PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                )
+                {
+                    float drive:angular:physics:maxForce = 20
+                    float newton:damping = 0.00052359875
+                    float newton:friction = 0.015
+                    uniform token physics:axis = "Z"
+                    custom rel physics:body0
+                    append rel physics:body0 = </tn__Fudan2026Balance_vNA/Geometry/base_link>
+                    custom rel physics:body1
+                    append rel physics:body1 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Right_front_link>
+                    point3f physics:localPos0 = (0, -0.1877, 0.08725)
+                    point3f physics:localPos1 = (0, 0, 0)
+                    quatf physics:localRot0 = (6.123234e-17, -1.2127353e-17, 0.70710826, -0.7071053)
+                    quatf physics:localRot1 = (1, 0, 0, 0)
+                }
+            }
+        }
+    }
+
+    over "Physics"
+    {
+        over "PhysicsMaterial" (
+            prepend apiSchemas = ["PhysicsMaterialAPI", "NewtonMaterialAPI"]
+        )
+        {
+            float newton:contactDamping = 100
+            float newton:contactStiffness = 2500
+            float newton:rollingFriction = 0.0001
+            float newton:torsionalFriction = 0.005
+            float physics:dynamicFriction = 1
+            float physics:staticFriction = 1
+        }
+
+        over "PhysicsMaterial_1" (
+            prepend apiSchemas = ["PhysicsMaterialAPI", "NewtonMaterialAPI"]
+        )
+        {
+            float newton:contactDamping = 100
+            float newton:contactStiffness = 2500
+            float newton:rollingFriction = 0
+            float newton:torsionalFriction = 0
+            float physics:dynamicFriction = 0
+            float physics:staticFriction = 0
+        }
+
+        def PhysicsSphericalJoint "Left_loop1"
+        {
+            uniform token physics:axis = "X"
+            custom rel physics:body0
+            append rel physics:body0 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Left_front_link/Left_front_child1_link/Left_front_child2_link/Left_front_site1>
+            custom rel physics:body1
+            append rel physics:body1 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Left_rear_link/Left_rear_site1>
+            uniform bool physics:excludeFromArticulation = 1
+            point3f physics:localPos0 = (0, 0, 0)
+            point3f physics:localPos1 = (0, 0, 0)
+            quatf physics:localRot0 = (1, 0, 0, 0)
+            quatf physics:localRot1 = (1, 0, 0, 0)
+        }
+
+        def PhysicsSphericalJoint "Left_loop2"
+        {
+            uniform token physics:axis = "X"
+            custom rel physics:body0
+            append rel physics:body0 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Left_front_link/Left_front_child1_link/Left_front_child2_link/Left_front_child3_link/Left_front_site2>
+            custom rel physics:body1
+            append rel physics:body1 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Left_rear_link/Left_rear_child1_link/Left_rear_site2>
+            uniform bool physics:excludeFromArticulation = 1
+            point3f physics:localPos0 = (0, 0, 0)
+            point3f physics:localPos1 = (0, 0, 0)
+            quatf physics:localRot0 = (1, 0, 0, 0)
+            quatf physics:localRot1 = (1, 0, 0, 0)
+        }
+
+        def PhysicsSphericalJoint "Right_loop1"
+        {
+            uniform token physics:axis = "X"
+            custom rel physics:body0
+            append rel physics:body0 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Right_front_link/Right_front_child1_link/Right_front_child2_link/Right_front_site1>
+            custom rel physics:body1
+            append rel physics:body1 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Right_rear_link/Right_rear_site1>
+            uniform bool physics:excludeFromArticulation = 1
+            point3f physics:localPos0 = (0, 0, 0)
+            point3f physics:localPos1 = (0, 0, 0)
+            quatf physics:localRot0 = (1, 0, 0, 0)
+            quatf physics:localRot1 = (1, 0, 0, 0)
+        }
+
+        def PhysicsSphericalJoint "Right_loop2"
+        {
+            uniform token physics:axis = "X"
+            custom rel physics:body0
+            append rel physics:body0 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Right_front_link/Right_front_child1_link/Right_front_child2_link/Right_front_child3_link/Right_front_site2>
+            custom rel physics:body1
+            append rel physics:body1 = </tn__Fudan2026Balance_vNA/Geometry/base_link/Right_rear_link/Right_rear_child1_link/Right_rear_site2>
+            uniform bool physics:excludeFromArticulation = 1
+            point3f physics:localPos0 = (0, 0, 0)
+            point3f physics:localPos1 = (0, 0, 0)
+            quatf physics:localRot0 = (1, 0, 0, 0)
+            quatf physics:localRot1 = (1, 0, 0, 0)
+        }
+    }
+}
+
+def PhysicsScene "PhysicsScene" (
+    prepend apiSchemas = ["NewtonSceneAPI"]
+)
+{
+    uniform int newton:maxSolverIterations = 100
+    uniform int newton:timeStepsPerSecond = 500
+    vector3f physics:gravityDirection = (0, 0, -1)
+    float physics:gravityMagnitude = 9.81
+}
+

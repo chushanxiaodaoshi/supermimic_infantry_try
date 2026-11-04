@@ -1,0 +1,497 @@
+#usda 1.0
+(
+    customLayerData = {
+        string creator = "MuJoCo USD Converter v0.6.1"
+    }
+    defaultPrim = "tn__Fudan2026Balance_vNA"
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    subLayers = [
+        @./physics.usda@
+    ]
+    upAxis = "Z"
+)
+
+over "tn__Fudan2026Balance_vNA"
+{
+    over "Geometry"
+    {
+        over "base_link"
+        {
+            over "forward_rangefinder_housing" (
+                prepend apiSchemas = ["MjcImageableAPI"]
+            )
+            {
+            }
+
+            over "forward_rangefinder_lens" (
+                prepend apiSchemas = ["MjcImageableAPI"]
+            )
+            {
+            }
+
+            over "hurdle_lidar_scan_disc" (
+                prepend apiSchemas = ["MjcImageableAPI"]
+            )
+            {
+            }
+
+            over "imu_site" (
+                prepend apiSchemas = ["MjcSiteAPI"]
+            )
+            {
+            }
+
+            over "forward_rangefinder_site" (
+                prepend apiSchemas = ["MjcSiteAPI"]
+            )
+            {
+            }
+
+            over "Left_virtual_hip_site" (
+                prepend apiSchemas = ["MjcSiteAPI"]
+            )
+            {
+            }
+
+            over "Right_virtual_hip_site" (
+                prepend apiSchemas = ["MjcSiteAPI"]
+            )
+            {
+            }
+
+            over "Left_rear_link"
+            {
+                over "Left_rear_site1" (
+                    prepend apiSchemas = ["MjcSiteAPI"]
+                )
+                {
+                }
+
+                over "right_lf0_qitanhuang" (
+                    prepend apiSchemas = ["MjcSiteAPI"]
+                )
+                {
+                }
+
+                over "Left_rear_child1_link"
+                {
+                    over "Left_rear_site2" (
+                        prepend apiSchemas = ["MjcSiteAPI"]
+                    )
+                    {
+                    }
+
+                    over "right_lf1_qitanhuang" (
+                        prepend apiSchemas = ["MjcSiteAPI"]
+                    )
+                    {
+                    }
+
+                    over "Left_Wheel_link"
+                    {
+                        over "Left_wheel_collision" (
+                            prepend apiSchemas = ["MjcCollisionAPI"]
+                        )
+                        {
+                            uniform double[] mjc:solref = [0.02, 1]
+                        }
+
+                        over "Left_wheel_axis_site" (
+                            prepend apiSchemas = ["MjcSiteAPI"]
+                        )
+                        {
+                        }
+
+                        over "Left_Wheel_joint" (
+                            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                            prepend apiSchemas = ["MjcJointAPI"]
+                        )
+                        {
+                            uniform double mjc:actuatorfrcrange:max = 100
+                            uniform double mjc:actuatorfrcrange:min = -100
+                            uniform double mjc:damping = 0.002
+                        }
+                    }
+
+                    over "Left_rear_child1_joint" (
+                        delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                        prepend apiSchemas = ["MjcJointAPI"]
+                    )
+                    {
+                        uniform double mjc:actuatorfrcrange:max = 100
+                        uniform double mjc:actuatorfrcrange:min = -100
+                        uniform double mjc:damping = 0.03
+                    }
+                }
+
+                over "Left_rear_joint" (
+                    delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                    prepend apiSchemas = ["MjcJointAPI"]
+                )
+                {
+                    uniform double mjc:actuatorfrcrange:max = 100
+                    uniform double mjc:actuatorfrcrange:min = -100
+                    uniform double mjc:damping = 0.03
+                }
+            }
+
+            over "Right_rear_link"
+            {
+                over "Right_rear_site1" (
+                    prepend apiSchemas = ["MjcSiteAPI"]
+                )
+                {
+                }
+
+                over "left_lf0_qitanhuang" (
+                    prepend apiSchemas = ["MjcSiteAPI"]
+                )
+                {
+                }
+
+                over "Right_rear_child1_link"
+                {
+                    over "Right_rear_site2" (
+                        prepend apiSchemas = ["MjcSiteAPI"]
+                    )
+                    {
+                    }
+
+                    over "left_lf1_qitanhuang" (
+                        prepend apiSchemas = ["MjcSiteAPI"]
+                    )
+                    {
+                    }
+
+                    over "Right_Wheel_link"
+                    {
+                        over "Right_wheel_collision" (
+                            prepend apiSchemas = ["MjcCollisionAPI"]
+                        )
+                        {
+                            uniform double[] mjc:solref = [0.02, 1]
+                        }
+
+                        over "Right_wheel_axis_site" (
+                            prepend apiSchemas = ["MjcSiteAPI"]
+                        )
+                        {
+                        }
+
+                        over "Right_Wheel_joint" (
+                            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                            prepend apiSchemas = ["MjcJointAPI"]
+                        )
+                        {
+                            uniform double mjc:actuatorfrcrange:max = 100
+                            uniform double mjc:actuatorfrcrange:min = -100
+                            uniform double mjc:damping = 0.002
+                        }
+                    }
+
+                    over "Right_rear_child1_joint" (
+                        delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                        prepend apiSchemas = ["MjcJointAPI"]
+                    )
+                    {
+                        uniform double mjc:actuatorfrcrange:max = 100
+                        uniform double mjc:actuatorfrcrange:min = -100
+                        uniform double mjc:damping = 0.03
+                    }
+                }
+
+                over "Right_rear_joint" (
+                    delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                    prepend apiSchemas = ["MjcJointAPI"]
+                )
+                {
+                    uniform double mjc:actuatorfrcrange:max = 100
+                    uniform double mjc:actuatorfrcrange:min = -100
+                    uniform double mjc:damping = 0.03
+                }
+            }
+
+            over "Left_front_link"
+            {
+                over "Left_front_child1_link"
+                {
+                    over "Left_front_child2_link"
+                    {
+                        over "Left_front_site1" (
+                            prepend apiSchemas = ["MjcSiteAPI"]
+                        )
+                        {
+                        }
+
+                        over "Left_front_child3_link"
+                        {
+                            over "Left_front_site2" (
+                                prepend apiSchemas = ["MjcSiteAPI"]
+                            )
+                            {
+                            }
+
+                            over "Left_front_child3_joint" (
+                                delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                                prepend apiSchemas = ["MjcJointAPI"]
+                            )
+                            {
+                                uniform double mjc:actuatorfrcrange:max = 100
+                                uniform double mjc:actuatorfrcrange:min = -100
+                            }
+                        }
+
+                        over "Left_front_child2_joint" (
+                            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                            prepend apiSchemas = ["MjcJointAPI"]
+                        )
+                        {
+                            uniform double mjc:actuatorfrcrange:max = 100
+                            uniform double mjc:actuatorfrcrange:min = -100
+                        }
+                    }
+
+                    over "Left_front_child1_joint" (
+                        delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                        prepend apiSchemas = ["MjcJointAPI"]
+                    )
+                    {
+                        uniform double mjc:actuatorfrcrange:max = 100
+                        uniform double mjc:actuatorfrcrange:min = -100
+                    }
+                }
+
+                over "Left_front_joint" (
+                    delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                    prepend apiSchemas = ["MjcJointAPI"]
+                )
+                {
+                    uniform double mjc:actuatorfrcrange:max = 100
+                    uniform double mjc:actuatorfrcrange:min = -100
+                    uniform double mjc:damping = 0.03
+                }
+            }
+
+            over "Right_front_link"
+            {
+                over "Right_front_child1_link"
+                {
+                    over "Right_front_child2_link"
+                    {
+                        over "Right_front_site1" (
+                            prepend apiSchemas = ["MjcSiteAPI"]
+                        )
+                        {
+                        }
+
+                        over "Right_front_child3_link"
+                        {
+                            over "Right_front_site2" (
+                                prepend apiSchemas = ["MjcSiteAPI"]
+                            )
+                            {
+                            }
+
+                            over "Right_front_joint3_joint" (
+                                delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                                prepend apiSchemas = ["MjcJointAPI"]
+                            )
+                            {
+                                uniform double mjc:actuatorfrcrange:max = 100
+                                uniform double mjc:actuatorfrcrange:min = -100
+                            }
+                        }
+
+                        over "Right_front_child2_joint" (
+                            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                            prepend apiSchemas = ["MjcJointAPI"]
+                        )
+                        {
+                            uniform double mjc:actuatorfrcrange:max = 100
+                            uniform double mjc:actuatorfrcrange:min = -100
+                        }
+                    }
+
+                    over "Right_front_child1_joint" (
+                        delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                        prepend apiSchemas = ["MjcJointAPI"]
+                    )
+                    {
+                        uniform double mjc:actuatorfrcrange:max = 100
+                        uniform double mjc:actuatorfrcrange:min = -100
+                    }
+                }
+
+                over "Right_front_joint" (
+                    delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                    prepend apiSchemas = ["MjcJointAPI"]
+                )
+                {
+                    uniform double mjc:actuatorfrcrange:max = 100
+                    uniform double mjc:actuatorfrcrange:min = -100
+                    uniform double mjc:damping = 0.03
+                }
+            }
+        }
+    }
+
+    over "Physics"
+    {
+        over "Left_loop1" (
+            prepend apiSchemas = ["MjcEqualityConnectAPI"]
+        )
+        {
+            uniform double[] mjc:solimp = [0.99995, 0.9999, 0.00001, 0.5, 2]
+            uniform double[] mjc:solref = [-24000, -309.838668]
+        }
+
+        over "Left_loop2" (
+            prepend apiSchemas = ["MjcEqualityConnectAPI"]
+        )
+        {
+            uniform double[] mjc:solimp = [0.99995, 0.9999, 0.00001, 0.5, 2]
+            uniform double[] mjc:solref = [-24000, -309.838668]
+        }
+
+        over "Right_loop1" (
+            prepend apiSchemas = ["MjcEqualityConnectAPI"]
+        )
+        {
+            uniform double[] mjc:solimp = [0.99995, 0.9999, 0.00001, 0.5, 2]
+            uniform double[] mjc:solref = [-24000, -309.838668]
+        }
+
+        over "Right_loop2" (
+            prepend apiSchemas = ["MjcEqualityConnectAPI"]
+        )
+        {
+            uniform double[] mjc:solimp = [0.99995, 0.9999, 0.00001, 0.5, 2]
+            uniform double[] mjc:solref = [-24000, -309.838668]
+        }
+
+        def MjcTendon "Left_gas_spring_tendon"
+        {
+            custom rel mjc:path
+            append rel mjc:path = [
+                </tn__Fudan2026Balance_vNA/Geometry/base_link/Left_rear_link/Left_rear_child1_link/right_lf1_qitanhuang>,
+                </tn__Fudan2026Balance_vNA/Geometry/base_link/Left_rear_link/right_lf0_qitanhuang>,
+            ]
+            uniform double[] mjc:path:divisors = [1]
+            uniform int[] mjc:path:indices = [0, 1]
+            uniform int[] mjc:path:segments = [0, 0]
+            uniform token mjc:type = "spatial"
+            uniform double mjc:width = 0.001
+        }
+
+        def MjcTendon "Right_gas_spring_tendon"
+        {
+            custom rel mjc:path
+            append rel mjc:path = [
+                </tn__Fudan2026Balance_vNA/Geometry/base_link/Right_rear_link/Right_rear_child1_link/left_lf1_qitanhuang>,
+                </tn__Fudan2026Balance_vNA/Geometry/base_link/Right_rear_link/left_lf0_qitanhuang>,
+            ]
+            uniform double[] mjc:path:divisors = [1]
+            uniform int[] mjc:path:indices = [0, 1]
+            uniform int[] mjc:path:segments = [0, 0]
+            uniform token mjc:type = "spatial"
+            uniform double mjc:width = 0.001
+        }
+
+        def MjcActuator "Left_front_joint_actuator"
+        {
+            uniform token mjc:ctrlLimited = "true"
+            uniform double mjc:ctrlRange:max = 20
+            uniform double mjc:ctrlRange:min = -20
+            uniform token mjc:forceLimited = "true"
+            uniform double mjc:forceRange:max = 20
+            uniform double mjc:forceRange:min = -20
+            custom rel mjc:target
+            append rel mjc:target = </tn__Fudan2026Balance_vNA/Geometry/base_link/Left_front_link/Left_front_joint>
+        }
+
+        def MjcActuator "Left_rear_joint_actuator"
+        {
+            uniform token mjc:ctrlLimited = "true"
+            uniform double mjc:ctrlRange:max = 20
+            uniform double mjc:ctrlRange:min = -20
+            uniform token mjc:forceLimited = "true"
+            uniform double mjc:forceRange:max = 20
+            uniform double mjc:forceRange:min = -20
+            custom rel mjc:target
+            append rel mjc:target = </tn__Fudan2026Balance_vNA/Geometry/base_link/Left_rear_link/Left_rear_joint>
+        }
+
+        def MjcActuator "Left_Wheel_joint_actuator"
+        {
+            uniform token mjc:ctrlLimited = "true"
+            uniform double mjc:ctrlRange:max = 4
+            uniform double mjc:ctrlRange:min = -4
+            uniform token mjc:forceLimited = "true"
+            uniform double mjc:forceRange:max = 4
+            uniform double mjc:forceRange:min = -4
+            custom rel mjc:target
+            append rel mjc:target = </tn__Fudan2026Balance_vNA/Geometry/base_link/Left_rear_link/Left_rear_child1_link/Left_Wheel_link/Left_Wheel_joint>
+        }
+
+        def MjcActuator "Right_front_joint_actuator"
+        {
+            uniform token mjc:ctrlLimited = "true"
+            uniform double mjc:ctrlRange:max = 20
+            uniform double mjc:ctrlRange:min = -20
+            uniform token mjc:forceLimited = "true"
+            uniform double mjc:forceRange:max = 20
+            uniform double mjc:forceRange:min = -20
+            custom rel mjc:target
+            append rel mjc:target = </tn__Fudan2026Balance_vNA/Geometry/base_link/Right_front_link/Right_front_joint>
+        }
+
+        def MjcActuator "Right_rear_joint_actuator"
+        {
+            uniform token mjc:ctrlLimited = "true"
+            uniform double mjc:ctrlRange:max = 20
+            uniform double mjc:ctrlRange:min = -20
+            uniform token mjc:forceLimited = "true"
+            uniform double mjc:forceRange:max = 20
+            uniform double mjc:forceRange:min = -20
+            custom rel mjc:target
+            append rel mjc:target = </tn__Fudan2026Balance_vNA/Geometry/base_link/Right_rear_link/Right_rear_joint>
+        }
+
+        def MjcActuator "Right_Wheel_joint_actuator"
+        {
+            uniform token mjc:ctrlLimited = "true"
+            uniform double mjc:ctrlRange:max = 4
+            uniform double mjc:ctrlRange:min = -4
+            uniform token mjc:forceLimited = "true"
+            uniform double mjc:forceRange:max = 4
+            uniform double mjc:forceRange:min = -4
+            custom rel mjc:target
+            append rel mjc:target = </tn__Fudan2026Balance_vNA/Geometry/base_link/Right_rear_link/Right_rear_child1_link/Right_Wheel_link/Right_Wheel_joint>
+        }
+
+        def MjcActuator "Left_gas_spring_actuator"
+        {
+            uniform token mjc:ctrlLimited = "true"
+            uniform double mjc:ctrlRange:max = 350
+            custom rel mjc:target
+            append rel mjc:target = </tn__Fudan2026Balance_vNA/Physics/Left_gas_spring_tendon>
+        }
+
+        def MjcActuator "Right_gas_spring_actuator"
+        {
+            uniform token mjc:ctrlLimited = "true"
+            uniform double mjc:ctrlRange:max = 350
+            custom rel mjc:target
+            append rel mjc:target = </tn__Fudan2026Balance_vNA/Physics/Right_gas_spring_tendon>
+        }
+    }
+}
+
+over "PhysicsScene" (
+    prepend apiSchemas = ["MjcSceneAPI"]
+)
+{
+    uniform token mjc:compiler:angle = "radian"
+}
+

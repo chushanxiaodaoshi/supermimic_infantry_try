@@ -1,0 +1,1193 @@
+#usda 1.0
+(
+    customLayerData = {
+        string creator = "MuJoCo USD Converter v0.6.1"
+    }
+    defaultPrim = "tn__Fudan2026Balance_vNA"
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    subLayers = [
+        @./robot.usda@
+    ]
+    upAxis = "Z"
+)
+
+def Xform "tn__Fudan2026Balance_vNA" (
+    prepend apiSchemas = ["GeomModelAPI", "IsaacRobotAPI"]
+    assetInfo = {
+        string name = "Fudan-2026-Balance"
+    }
+    displayName = "Fudan-2026-Balance"
+    kind = "component"
+    uiHints = {
+        string displayName = "Fudan-2026-Balance"
+    }
+)
+{
+    float3[] extentsHint = [(-0.27853504, -0.2980378, -0.108750194), (0.27777904, 0.2980378, 0.47199336), (3.4028235e38, 3.4028235e38, 3.4028235e38), (-3.4028235e38, -3.4028235e38, -3.4028235e38), (3.4028235e38, 3.4028235e38, 3.4028235e38), (-3.4028235e38, -3.4028235e38, -3.4028235e38), (-0.20363212, -0.20980017, -0.055750087), (0.272, 0.21180017, 0.22815995)]
+    custom rel isaac:physics:robotJoints
+    custom rel isaac:physics:robotLinks
+    custom token isaac:robotType = "Default"
+
+    def Scope "Geometry"
+    {
+        def Xform "base_link" (
+            prepend apiSchemas = ["IsaacLinkAPI"]
+        )
+        {
+            quatf xformOp:orient = (1, 0, 0, 0)
+            float3 xformOp:scale = (1, 1, 1)
+            double3 xformOp:translate = (0, 0, 0.07)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+
+            def Xform "base_link_collision" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+                displayName = ""
+                instanceable = true
+                prepend references = @./instances.usda@</Instances/base_link_collision>
+                uiHints = {
+                    string displayName = ""
+                }
+            )
+            {
+                rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                quatd xformOp:orient = (0, 0, 0, 1)
+                double3 xformOp:scale = (1, 1, 1)
+                double3 xformOp:translate = (0, 0, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "forward_rangefinder_housing"
+            {
+                float3[] extent = [(-1, -1, -1), (1, 1, 1)]
+                color3f[] primvars:displayColor = [(0.12, 0.14, 0.16)] (
+                    interpolation = "constant"
+                )
+                int[] primvars:displayColor:indices = None
+                float[] primvars:displayOpacity = [1] (
+                    interpolation = "constant"
+                )
+                int[] primvars:displayOpacity:indices = None
+                double size = 2
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.03, 0.04, 0.018)
+                double3 xformOp:translate = (0.23, 0, 0.01)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cylinder "forward_rangefinder_lens"
+            {
+                uniform token axis = "Z"
+                float3[] extent = [(-0.011, -0.011, -0.004), (0.011, 0.011, 0.004)]
+                double height = 0.008
+                color3f[] primvars:displayColor = [(0.1, 0.75, 0.95)] (
+                    interpolation = "constant"
+                )
+                int[] primvars:displayColor:indices = None
+                float[] primvars:displayOpacity = [1] (
+                    interpolation = "constant"
+                )
+                int[] primvars:displayOpacity:indices = None
+                double radius = 0.011
+                quatf xformOp:orient = (0.7071068, 0, 0.7071067, 0)
+                float3 xformOp:scale = (1, 1, 1)
+                double3 xformOp:translate = (0.264, 0, 0.01)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cylinder "hurdle_lidar_scan_disc"
+            {
+                uniform token axis = "Z"
+                float3[] extent = [(-0.02, -0.02, -0.01), (0.02, 0.02, 0.01)]
+                double height = 0.02
+                color3f[] primvars:displayColor = [(0.1, 0.85, 1)] (
+                    interpolation = "constant"
+                )
+                int[] primvars:displayColor:indices = None
+                float[] primvars:displayOpacity = [0.25] (
+                    interpolation = "constant"
+                )
+                int[] primvars:displayOpacity:indices = None
+                double radius = 0.02
+                quatf xformOp:orient = (0.7071068, 0.7071067, 0, 0)
+                float3 xformOp:scale = (1, 1, 1)
+                double3 xformOp:translate = (0.235, 0.08, 0.02)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Sphere "imu_site"
+            {
+                float3[] extent = [(-0.005, -0.005, -0.005), (0.005, 0.005, 0.005)]
+                color3f[] primvars:displayColor = [(0.5, 0.5, 0.5)] (
+                    interpolation = "constant"
+                )
+                int[] primvars:displayColor:indices = None
+                float[] primvars:displayOpacity = [1] (
+                    interpolation = "constant"
+                )
+                int[] primvars:displayOpacity:indices = None
+                uniform token purpose = "guide"
+                double radius = 0.005
+                quatf xformOp:orient = (6.123234e-17, 0, 0, 1)
+                float3 xformOp:scale = (1, 1, 1)
+                double3 xformOp:translate = (0, 0, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cylinder "forward_rangefinder_site"
+            {
+                uniform token axis = "Z"
+                float3[] extent = [(-0.004, -0.004, -0.002), (0.004, 0.004, 0.002)]
+                double height = 0.004
+                color3f[] primvars:displayColor = [(0.2, 0.9, 1)] (
+                    interpolation = "constant"
+                )
+                int[] primvars:displayColor:indices = None
+                float[] primvars:displayOpacity = [1] (
+                    interpolation = "constant"
+                )
+                int[] primvars:displayOpacity:indices = None
+                uniform token purpose = "guide"
+                double radius = 0.004
+                quatf xformOp:orient = (0.7071068, 0, 0.7071067, 0)
+                float3 xformOp:scale = (1, 1, 1)
+                double3 xformOp:translate = (0.27, 0, 0.01)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Sphere "Left_virtual_hip_site"
+            {
+                float3[] extent = [(-0.005, -0.005, -0.005), (0.005, 0.005, 0.005)]
+                color3f[] primvars:displayColor = [(0, 1, 0)] (
+                    interpolation = "constant"
+                )
+                int[] primvars:displayColor:indices = None
+                float[] primvars:displayOpacity = [1] (
+                    interpolation = "constant"
+                )
+                int[] primvars:displayOpacity:indices = None
+                uniform token purpose = "guide"
+                double radius = 0.005
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (1, 1, 1)
+                double3 xformOp:translate = (0, 0.1877, 0.08725)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Sphere "Right_virtual_hip_site"
+            {
+                float3[] extent = [(-0.005, -0.005, -0.005), (0.005, 0.005, 0.005)]
+                color3f[] primvars:displayColor = [(0, 1, 0)] (
+                    interpolation = "constant"
+                )
+                int[] primvars:displayColor:indices = None
+                float[] primvars:displayOpacity = [1] (
+                    interpolation = "constant"
+                )
+                int[] primvars:displayOpacity:indices = None
+                uniform token purpose = "guide"
+                double radius = 0.005
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (1, 1, 1)
+                double3 xformOp:translate = (0, -0.1877, 0.08725)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Xform "Left_rear_link" (
+                prepend apiSchemas = ["IsaacLinkAPI"]
+            )
+            {
+                quatf xformOp:orient = (6.123234e-17, -4.9549012e-17, 0.70710826, 0.7071053)
+                float3 xformOp:scale = (1, 1, 1)
+                double3 xformOp:translate = (0, 0.1877, 0.08725)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+
+                def Xform "rf0_collision" (
+                    prepend apiSchemas = ["MaterialBindingAPI"]
+                    displayName = ""
+                    instanceable = true
+                    prepend references = @./instances.usda@</Instances/rf0_collision>
+                    uiHints = {
+                        string displayName = ""
+                    }
+                )
+                {
+                    rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial> (
+                        bindMaterialAs = "weakerThanDescendants"
+                    )
+                    quatd xformOp:orient = (1, 0, 0, 0)
+                    double3 xformOp:scale = (1, 1, 1)
+                    double3 xformOp:translate = (0, 0, 0)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                }
+
+                def Xform "rf0_self_collision_0" (
+                    prepend apiSchemas = ["MaterialBindingAPI"]
+                    instanceable = true
+                    prepend references = @./instances.usda@</Instances/rf0_self_collision_0>
+                )
+                {
+                    rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial_1> (
+                        bindMaterialAs = "weakerThanDescendants"
+                    )
+                    quatd xformOp:orient = (1, 0, 0, 0)
+                    double3 xformOp:scale = (1, 1, 1)
+                    double3 xformOp:translate = (0, 0, 0)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                }
+
+                def Xform "rf0_self_collision_1" (
+                    prepend apiSchemas = ["MaterialBindingAPI"]
+                    instanceable = true
+                    prepend references = @./instances.usda@</Instances/rf0_self_collision_1>
+                )
+                {
+                    rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial_1> (
+                        bindMaterialAs = "weakerThanDescendants"
+                    )
+                    quatd xformOp:orient = (1, 0, 0, 0)
+                    double3 xformOp:scale = (1, 1, 1)
+                    double3 xformOp:translate = (0, 0, 0)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                }
+
+                def Xform "rf0_self_collision_2" (
+                    prepend apiSchemas = ["MaterialBindingAPI"]
+                    instanceable = true
+                    prepend references = @./instances.usda@</Instances/rf0_self_collision_2>
+                )
+                {
+                    rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial_1> (
+                        bindMaterialAs = "weakerThanDescendants"
+                    )
+                    quatd xformOp:orient = (1, 0, 0, 0)
+                    double3 xformOp:scale = (1, 1, 1)
+                    double3 xformOp:translate = (0, 0, 0)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                }
+
+                def Xform "rf0_self_collision_3" (
+                    prepend apiSchemas = ["MaterialBindingAPI"]
+                    instanceable = true
+                    prepend references = @./instances.usda@</Instances/rf0_self_collision_3>
+                )
+                {
+                    rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial_1> (
+                        bindMaterialAs = "weakerThanDescendants"
+                    )
+                    quatd xformOp:orient = (1, 0, 0, 0)
+                    double3 xformOp:scale = (1, 1, 1)
+                    double3 xformOp:translate = (0, 0, 0)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                }
+
+                def Xform "rf0_self_collision_4" (
+                    prepend apiSchemas = ["MaterialBindingAPI"]
+                    instanceable = true
+                    prepend references = @./instances.usda@</Instances/rf0_self_collision_4>
+                )
+                {
+                    rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial_1> (
+                        bindMaterialAs = "weakerThanDescendants"
+                    )
+                    quatd xformOp:orient = (1, 0, 0, 0)
+                    double3 xformOp:scale = (1, 1, 1)
+                    double3 xformOp:translate = (0, 0, 0)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                }
+
+                def Xform "rf0_self_collision_5" (
+                    prepend apiSchemas = ["MaterialBindingAPI"]
+                    instanceable = true
+                    prepend references = @./instances.usda@</Instances/rf0_self_collision_5>
+                )
+                {
+                    rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial_1> (
+                        bindMaterialAs = "weakerThanDescendants"
+                    )
+                    quatd xformOp:orient = (1, 0, 0, 0)
+                    double3 xformOp:scale = (1, 1, 1)
+                    double3 xformOp:translate = (0, 0, 0)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                }
+
+                def Xform "rf0_self_collision_7" (
+                    prepend apiSchemas = ["MaterialBindingAPI"]
+                    instanceable = true
+                    prepend references = @./instances.usda@</Instances/rf0_self_collision_7>
+                )
+                {
+                    rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial_1> (
+                        bindMaterialAs = "weakerThanDescendants"
+                    )
+                    quatd xformOp:orient = (1, 0, 0, 0)
+                    double3 xformOp:scale = (1, 1, 1)
+                    double3 xformOp:translate = (0, 0, 0)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                }
+
+                def Sphere "Left_rear_site1"
+                {
+                    float3[] extent = [(-0.005, -0.005, -0.005), (0.005, 0.005, 0.005)]
+                    color3f[] primvars:displayColor = [(1, 0, 0)] (
+                        interpolation = "constant"
+                    )
+                    int[] primvars:displayColor:indices = None
+                    float[] primvars:displayOpacity = [1] (
+                        interpolation = "constant"
+                    )
+                    int[] primvars:displayOpacity:indices = None
+                    uniform token purpose = "guide"
+                    double radius = 0.005
+                    quatf xformOp:orient = (1, 0, 0, 0)
+                    float3 xformOp:scale = (1, 1, 1)
+                    double3 xformOp:translate = (0.09435, 0, 0)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                }
+
+                def Sphere "right_lf0_qitanhuang"
+                {
+                    float3[] extent = [(-0.005, -0.005, -0.005), (0.005, 0.005, 0.005)]
+                    color3f[] primvars:displayColor = [(1, 0, 0)] (
+                        interpolation = "constant"
+                    )
+                    int[] primvars:displayColor:indices = None
+                    float[] primvars:displayOpacity = [1] (
+                        interpolation = "constant"
+                    )
+                    int[] primvars:displayOpacity:indices = None
+                    uniform token purpose = "guide"
+                    double radius = 0.005
+                    quatf xformOp:orient = (1, 0, 0, 0)
+                    float3 xformOp:scale = (1, 1, 1)
+                    double3 xformOp:translate = (0.0155, -0.0445, -0.008)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                }
+
+                def Xform "Left_rear_child1_link" (
+                    prepend apiSchemas = ["IsaacLinkAPI"]
+                )
+                {
+                    quatf xformOp:orient = (1, 0, 0, 0)
+                    float3 xformOp:scale = (1, 1, 1)
+                    double3 xformOp:translate = (0.17472, 0, 0)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+
+                    def Xform "Left_rear_child1_link" (
+                        prepend apiSchemas = ["MaterialBindingAPI"]
+                        instanceable = true
+                        prepend references = @./instances.usda@</Instances/Left_rear_child1_link>
+                    )
+                    {
+                        rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial> (
+                            bindMaterialAs = "weakerThanDescendants"
+                        )
+                        quatd xformOp:orient = (1, 0, 0, 0)
+                        double3 xformOp:scale = (1, 1, 1)
+                        double3 xformOp:translate = (0, 0, 0)
+                        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                    }
+
+                    def Sphere "Left_rear_site2"
+                    {
+                        float3[] extent = [(-0.005, -0.005, -0.005), (0.005, 0.005, 0.005)]
+                        color3f[] primvars:displayColor = [(1, 0, 0)] (
+                            interpolation = "constant"
+                        )
+                        int[] primvars:displayColor:indices = None
+                        float[] primvars:displayOpacity = [1] (
+                            interpolation = "constant"
+                        )
+                        int[] primvars:displayOpacity:indices = None
+                        uniform token purpose = "guide"
+                        double radius = 0.005
+                        quatf xformOp:orient = (1, 0, 0, 0)
+                        float3 xformOp:scale = (1, 1, 1)
+                        double3 xformOp:translate = (-0.0160931, 0.0609099, 0)
+                        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                    }
+
+                    def Sphere "right_lf1_qitanhuang"
+                    {
+                        float3[] extent = [(-0.01, -0.01, -0.01), (0.01, 0.01, 0.01)]
+                        color3f[] primvars:displayColor = [(1, 0, 0)] (
+                            interpolation = "constant"
+                        )
+                        int[] primvars:displayColor:indices = None
+                        float[] primvars:displayOpacity = [1] (
+                            interpolation = "constant"
+                        )
+                        int[] primvars:displayOpacity:indices = None
+                        uniform token purpose = "guide"
+                        double radius = 0.01
+                        quatf xformOp:orient = (1, 0, 0, 0)
+                        float3 xformOp:scale = (1, 1, 1)
+                        double3 xformOp:translate = (0.005, -0.046, -0.005)
+                        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                    }
+
+                    def Xform "Left_Wheel_link" (
+                        prepend apiSchemas = ["IsaacLinkAPI"]
+                    )
+                    {
+                        quatf xformOp:orient = (1, 0, 0, 0)
+                        float3 xformOp:scale = (1, 1, 1)
+                        double3 xformOp:translate = (0, -0.208, 0.016)
+                        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+
+                        def Xform "Left_Wheel_link_visual" (
+                            displayName = ""
+                            instanceable = true
+                            prepend references = @./instances.usda@</Instances/Left_Wheel_link_visual>
+                            uiHints = {
+                                string displayName = ""
+                            }
+                        )
+                        {
+                            quatd xformOp:orient = (0, 0, 0.7071067691, 0.7071067691)
+                            double3 xformOp:scale = (1, 1, 1)
+                            double3 xformOp:translate = (0, 0, 0)
+                            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                        }
+
+                        def Cylinder "Left_wheel_collision" (
+                            prepend apiSchemas = ["PhysicsCollisionAPI", "MaterialBindingAPI"]
+                        )
+                        {
+                            uniform token axis = "Z"
+                            float3[] extent = [(-0.058, -0.058, -0.028), (0.058, 0.058, 0.028)]
+                            double height = 0.056
+                            rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial>
+                            color3f[] primvars:displayColor = [(0, 0, 0)] (
+                                interpolation = "constant"
+                            )
+                            int[] primvars:displayColor:indices = None
+                            float[] primvars:displayOpacity = [0] (
+                                interpolation = "constant"
+                            )
+                            int[] primvars:displayOpacity:indices = None
+                            double radius = 0.058
+                            quatf xformOp:orient = (1, 0, 0, 0)
+                            float3 xformOp:scale = (1, 1, 1)
+                            double3 xformOp:translate = (0, 0, 0.002)
+                            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                        }
+
+                        def Sphere "Left_wheel_axis_site"
+                        {
+                            float3[] extent = [(-0.005, -0.005, -0.005), (0.005, 0.005, 0.005)]
+                            color3f[] primvars:displayColor = [(0, 0, 1)] (
+                                interpolation = "constant"
+                            )
+                            int[] primvars:displayColor:indices = None
+                            float[] primvars:displayOpacity = [1] (
+                                interpolation = "constant"
+                            )
+                            int[] primvars:displayOpacity:indices = None
+                            uniform token purpose = "guide"
+                            double radius = 0.005
+                            quatf xformOp:orient = (1, 0, 0, 0)
+                            float3 xformOp:scale = (1, 1, 1)
+                            double3 xformOp:translate = (0, 0, 0)
+                            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                        }
+                    }
+                }
+            }
+
+            def Xform "Right_rear_link" (
+                prepend apiSchemas = ["IsaacLinkAPI"]
+            )
+            {
+                quatf xformOp:orient = (6.123234e-17, 9.3293326e-18, 0.70710826, -0.7071053)
+                float3 xformOp:scale = (1, 1, 1)
+                double3 xformOp:translate = (0, -0.1877, 0.08725)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+
+                def Xform "lf0_collision" (
+                    prepend apiSchemas = ["MaterialBindingAPI"]
+                    displayName = ""
+                    instanceable = true
+                    prepend references = @./instances.usda@</Instances/lf0_collision>
+                    uiHints = {
+                        string displayName = ""
+                    }
+                )
+                {
+                    rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial> (
+                        bindMaterialAs = "weakerThanDescendants"
+                    )
+                    quatd xformOp:orient = (1, 0, 0, 0)
+                    double3 xformOp:scale = (1, 1, 1)
+                    double3 xformOp:translate = (0, 0, 0)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                }
+
+                def Xform "lf0_self_collision_0" (
+                    prepend apiSchemas = ["MaterialBindingAPI"]
+                    instanceable = true
+                    prepend references = @./instances.usda@</Instances/lf0_self_collision_0>
+                )
+                {
+                    rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial_1> (
+                        bindMaterialAs = "weakerThanDescendants"
+                    )
+                    quatd xformOp:orient = (1, 0, 0, 0)
+                    double3 xformOp:scale = (1, 1, 1)
+                    double3 xformOp:translate = (0, 0, 0)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                }
+
+                def Xform "lf0_self_collision_1" (
+                    prepend apiSchemas = ["MaterialBindingAPI"]
+                    instanceable = true
+                    prepend references = @./instances.usda@</Instances/lf0_self_collision_1>
+                )
+                {
+                    rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial_1> (
+                        bindMaterialAs = "weakerThanDescendants"
+                    )
+                    quatd xformOp:orient = (1, 0, 0, 0)
+                    double3 xformOp:scale = (1, 1, 1)
+                    double3 xformOp:translate = (0, 0, 0)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                }
+
+                def Xform "lf0_self_collision_3" (
+                    prepend apiSchemas = ["MaterialBindingAPI"]
+                    instanceable = true
+                    prepend references = @./instances.usda@</Instances/lf0_self_collision_3>
+                )
+                {
+                    rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial_1> (
+                        bindMaterialAs = "weakerThanDescendants"
+                    )
+                    quatd xformOp:orient = (1, 0, 0, 0)
+                    double3 xformOp:scale = (1, 1, 1)
+                    double3 xformOp:translate = (0, 0, 0)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                }
+
+                def Xform "lf0_self_collision_4" (
+                    prepend apiSchemas = ["MaterialBindingAPI"]
+                    instanceable = true
+                    prepend references = @./instances.usda@</Instances/lf0_self_collision_4>
+                )
+                {
+                    rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial_1> (
+                        bindMaterialAs = "weakerThanDescendants"
+                    )
+                    quatd xformOp:orient = (1, 0, 0, 0)
+                    double3 xformOp:scale = (1, 1, 1)
+                    double3 xformOp:translate = (0, 0, 0)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                }
+
+                def Xform "lf0_self_collision_5" (
+                    prepend apiSchemas = ["MaterialBindingAPI"]
+                    instanceable = true
+                    prepend references = @./instances.usda@</Instances/lf0_self_collision_5>
+                )
+                {
+                    rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial_1> (
+                        bindMaterialAs = "weakerThanDescendants"
+                    )
+                    quatd xformOp:orient = (1, 0, 0, 0)
+                    double3 xformOp:scale = (1, 1, 1)
+                    double3 xformOp:translate = (0, 0, 0)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                }
+
+                def Xform "lf0_self_collision_6" (
+                    prepend apiSchemas = ["MaterialBindingAPI"]
+                    instanceable = true
+                    prepend references = @./instances.usda@</Instances/lf0_self_collision_6>
+                )
+                {
+                    rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial_1> (
+                        bindMaterialAs = "weakerThanDescendants"
+                    )
+                    quatd xformOp:orient = (1, 0, 0, 0)
+                    double3 xformOp:scale = (1, 1, 1)
+                    double3 xformOp:translate = (0, 0, 0)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                }
+
+                def Xform "lf0_self_collision_7" (
+                    prepend apiSchemas = ["MaterialBindingAPI"]
+                    instanceable = true
+                    prepend references = @./instances.usda@</Instances/lf0_self_collision_7>
+                )
+                {
+                    rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial_1> (
+                        bindMaterialAs = "weakerThanDescendants"
+                    )
+                    quatd xformOp:orient = (1, 0, 0, 0)
+                    double3 xformOp:scale = (1, 1, 1)
+                    double3 xformOp:translate = (0, 0, 0)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                }
+
+                def Sphere "Right_rear_site1"
+                {
+                    float3[] extent = [(-0.005, -0.005, -0.005), (0.005, 0.005, 0.005)]
+                    color3f[] primvars:displayColor = [(1, 0, 0)] (
+                        interpolation = "constant"
+                    )
+                    int[] primvars:displayColor:indices = None
+                    float[] primvars:displayOpacity = [1] (
+                        interpolation = "constant"
+                    )
+                    int[] primvars:displayOpacity:indices = None
+                    uniform token purpose = "guide"
+                    double radius = 0.005
+                    quatf xformOp:orient = (1, 0, 0, 0)
+                    float3 xformOp:scale = (1, 1, 1)
+                    double3 xformOp:translate = (0.09435, 0, 0)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                }
+
+                def Sphere "left_lf0_qitanhuang"
+                {
+                    float3[] extent = [(-0.005, -0.005, -0.005), (0.005, 0.005, 0.005)]
+                    color3f[] primvars:displayColor = [(1, 0, 0)] (
+                        interpolation = "constant"
+                    )
+                    int[] primvars:displayColor:indices = None
+                    float[] primvars:displayOpacity = [1] (
+                        interpolation = "constant"
+                    )
+                    int[] primvars:displayOpacity:indices = None
+                    uniform token purpose = "guide"
+                    double radius = 0.005
+                    quatf xformOp:orient = (1, 0, 0, 0)
+                    float3 xformOp:scale = (1, 1, 1)
+                    double3 xformOp:translate = (0.0155, 0.0445, -0.008)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                }
+
+                def Xform "Right_rear_child1_link" (
+                    prepend apiSchemas = ["IsaacLinkAPI"]
+                )
+                {
+                    quatf xformOp:orient = (1, 0, 0, 0)
+                    float3 xformOp:scale = (1, 1, 1)
+                    double3 xformOp:translate = (0.17472, 0, 0)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+
+                    def Xform "Right_rear_child1_link" (
+                        prepend apiSchemas = ["MaterialBindingAPI"]
+                        instanceable = true
+                        prepend references = @./instances.usda@</Instances/Right_rear_child1_link>
+                    )
+                    {
+                        rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial> (
+                            bindMaterialAs = "weakerThanDescendants"
+                        )
+                        quatd xformOp:orient = (1, 0, 0, 0)
+                        double3 xformOp:scale = (1, 1, 1)
+                        double3 xformOp:translate = (0, 0, 0)
+                        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                    }
+
+                    def Sphere "Right_rear_site2"
+                    {
+                        float3[] extent = [(-0.01, -0.01, -0.01), (0.01, 0.01, 0.01)]
+                        color3f[] primvars:displayColor = [(1, 0, 0)] (
+                            interpolation = "constant"
+                        )
+                        int[] primvars:displayColor:indices = None
+                        float[] primvars:displayOpacity = [1] (
+                            interpolation = "constant"
+                        )
+                        int[] primvars:displayOpacity:indices = None
+                        uniform token purpose = "guide"
+                        double radius = 0.01
+                        quatf xformOp:orient = (1, 0, 0, 0)
+                        float3 xformOp:scale = (1, 1, 1)
+                        double3 xformOp:translate = (-0.0160931, -0.0609099, 0)
+                        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                    }
+
+                    def Sphere "left_lf1_qitanhuang"
+                    {
+                        float3[] extent = [(-0.01, -0.01, -0.01), (0.01, 0.01, 0.01)]
+                        color3f[] primvars:displayColor = [(1, 0, 0)] (
+                            interpolation = "constant"
+                        )
+                        int[] primvars:displayColor:indices = None
+                        float[] primvars:displayOpacity = [1] (
+                            interpolation = "constant"
+                        )
+                        int[] primvars:displayOpacity:indices = None
+                        uniform token purpose = "guide"
+                        double radius = 0.01
+                        quatf xformOp:orient = (1, 0, 0, 0)
+                        float3 xformOp:scale = (1, 1, 1)
+                        double3 xformOp:translate = (0.005, 0.046, -0.005)
+                        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                    }
+
+                    def Xform "Right_Wheel_link" (
+                        prepend apiSchemas = ["IsaacLinkAPI"]
+                    )
+                    {
+                        quatf xformOp:orient = (1, 0, 0, 0)
+                        float3 xformOp:scale = (1, 1, 1)
+                        double3 xformOp:translate = (0, 0.208, 0.016)
+                        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+
+                        def Xform "Right_Wheel_link_visual" (
+                            displayName = ""
+                            instanceable = true
+                            prepend references = @./instances.usda@</Instances/Right_Wheel_link_visual>
+                            uiHints = {
+                                string displayName = ""
+                            }
+                        )
+                        {
+                            quatd xformOp:orient = (0, 0, 0.7071067691, -0.7071067691)
+                            double3 xformOp:scale = (1, 1, 1)
+                            double3 xformOp:translate = (0, 0, 0)
+                            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                        }
+
+                        def Cylinder "Right_wheel_collision" (
+                            prepend apiSchemas = ["PhysicsCollisionAPI", "MaterialBindingAPI"]
+                        )
+                        {
+                            uniform token axis = "Z"
+                            float3[] extent = [(-0.058, -0.058, -0.028), (0.058, 0.058, 0.028)]
+                            double height = 0.056
+                            rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial>
+                            color3f[] primvars:displayColor = [(0, 0, 0)] (
+                                interpolation = "constant"
+                            )
+                            int[] primvars:displayColor:indices = None
+                            float[] primvars:displayOpacity = [0] (
+                                interpolation = "constant"
+                            )
+                            int[] primvars:displayOpacity:indices = None
+                            double radius = 0.058
+                            quatf xformOp:orient = (1, 0, 0, 0)
+                            float3 xformOp:scale = (1, 1, 1)
+                            double3 xformOp:translate = (0, 0, 0.002)
+                            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                        }
+
+                        def Sphere "Right_wheel_axis_site"
+                        {
+                            float3[] extent = [(-0.005, -0.005, -0.005), (0.005, 0.005, 0.005)]
+                            color3f[] primvars:displayColor = [(0, 0, 1)] (
+                                interpolation = "constant"
+                            )
+                            int[] primvars:displayColor:indices = None
+                            float[] primvars:displayOpacity = [1] (
+                                interpolation = "constant"
+                            )
+                            int[] primvars:displayOpacity:indices = None
+                            uniform token purpose = "guide"
+                            double radius = 0.005
+                            quatf xformOp:orient = (1, 0, 0, 0)
+                            float3 xformOp:scale = (1, 1, 1)
+                            double3 xformOp:translate = (0, 0, 0)
+                            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                        }
+                    }
+                }
+            }
+
+            def Xform "Left_front_link" (
+                prepend apiSchemas = ["IsaacLinkAPI"]
+            )
+            {
+                quatf xformOp:orient = (6.123234e-17, -4.9549012e-17, 0.70710826, 0.7071053)
+                float3 xformOp:scale = (1, 1, 1)
+                double3 xformOp:translate = (0, 0.1877, 0.08725)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+
+                def Xform "Left_front_link" (
+                    prepend apiSchemas = ["MaterialBindingAPI"]
+                    instanceable = true
+                    prepend references = @./instances.usda@</Instances/Left_front_link>
+                )
+                {
+                    rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial> (
+                        bindMaterialAs = "weakerThanDescendants"
+                    )
+                    quatd xformOp:orient = (1, 0, 0, 0)
+                    double3 xformOp:scale = (1, 1, 1)
+                    double3 xformOp:translate = (0, 0, 0)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                }
+
+                def Xform "Left_front_child1_link" (
+                    prepend apiSchemas = ["IsaacLinkAPI"]
+                )
+                {
+                    quatf xformOp:orient = (1, 0, 0, 0)
+                    float3 xformOp:scale = (1, 1, 1)
+                    double3 xformOp:translate = (-0.016285, -0.092933, 0.01)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+
+                    def Xform "Left_front_child1_link" (
+                        prepend apiSchemas = ["MaterialBindingAPI"]
+                        instanceable = true
+                        prepend references = @./instances.usda@</Instances/Left_front_child1_link>
+                    )
+                    {
+                        rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial> (
+                            bindMaterialAs = "weakerThanDescendants"
+                        )
+                        quatd xformOp:orient = (1, 0, 0, 0)
+                        double3 xformOp:scale = (1, 1, 1)
+                        double3 xformOp:translate = (0, 0, 0)
+                        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                    }
+
+                    def Xform "Left_front_child2_link" (
+                        prepend apiSchemas = ["IsaacLinkAPI"]
+                    )
+                    {
+                        quatf xformOp:orient = (1, 0, 0, 0)
+                        float3 xformOp:scale = (1, 1, 1)
+                        double3 xformOp:translate = (0.11063, -0.019387, 0)
+                        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+
+                        def Xform "r22_collision" (
+                            prepend apiSchemas = ["MaterialBindingAPI"]
+                            displayName = ""
+                            instanceable = true
+                            prepend references = @./instances.usda@</Instances/r22_collision>
+                            uiHints = {
+                                string displayName = ""
+                            }
+                        )
+                        {
+                            rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial> (
+                                bindMaterialAs = "weakerThanDescendants"
+                            )
+                            quatd xformOp:orient = (1, 0, 0, 0)
+                            double3 xformOp:scale = (1, 1, 1)
+                            double3 xformOp:translate = (0, 0, 0)
+                            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                        }
+
+                        def Xform "r22_self_collision_2" (
+                            prepend apiSchemas = ["MaterialBindingAPI"]
+                            instanceable = true
+                            prepend references = @./instances.usda@</Instances/r22_self_collision_2>
+                        )
+                        {
+                            rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial_1> (
+                                bindMaterialAs = "weakerThanDescendants"
+                            )
+                            quatd xformOp:orient = (1, 0, 0, 0)
+                            double3 xformOp:scale = (1, 1, 1)
+                            double3 xformOp:translate = (0, 0, 0)
+                            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                        }
+
+                        def Xform "r22_self_collision_3" (
+                            prepend apiSchemas = ["MaterialBindingAPI"]
+                            instanceable = true
+                            prepend references = @./instances.usda@</Instances/r22_self_collision_3>
+                        )
+                        {
+                            rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial_1> (
+                                bindMaterialAs = "weakerThanDescendants"
+                            )
+                            quatd xformOp:orient = (1, 0, 0, 0)
+                            double3 xformOp:scale = (1, 1, 1)
+                            double3 xformOp:translate = (0, 0, 0)
+                            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                        }
+
+                        def Xform "r22_self_collision_6" (
+                            prepend apiSchemas = ["MaterialBindingAPI"]
+                            instanceable = true
+                            prepend references = @./instances.usda@</Instances/r22_self_collision_6>
+                        )
+                        {
+                            rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial_1> (
+                                bindMaterialAs = "weakerThanDescendants"
+                            )
+                            quatd xformOp:orient = (1, 0, 0, 0)
+                            double3 xformOp:scale = (1, 1, 1)
+                            double3 xformOp:translate = (0, 0, 0)
+                            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                        }
+
+                        def Sphere "Left_front_site1"
+                        {
+                            float3[] extent = [(-0.005, -0.005, -0.005), (0.005, 0.005, 0.005)]
+                            color3f[] primvars:displayColor = [(1, 1, 0)] (
+                                interpolation = "constant"
+                            )
+                            int[] primvars:displayColor:indices = None
+                            float[] primvars:displayOpacity = [1] (
+                                interpolation = "constant"
+                            )
+                            int[] primvars:displayOpacity:indices = None
+                            uniform token purpose = "guide"
+                            double radius = 0.005
+                            quatf xformOp:orient = (1, 0, 0, 0)
+                            float3 xformOp:scale = (1, 1, 1)
+                            double3 xformOp:translate = (0, 0.11232, -0.01)
+                            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                        }
+
+                        def Xform "Left_front_child3_link" (
+                            prepend apiSchemas = ["IsaacLinkAPI"]
+                        )
+                        {
+                            quatf xformOp:orient = (1, 0, 0, 0)
+                            float3 xformOp:scale = (1, 1, 1)
+                            double3 xformOp:translate = (-0.018032, 0.17268, 0)
+                            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+
+                            def Xform "Left_front_child3_link" (
+                                prepend apiSchemas = ["MaterialBindingAPI"]
+                                instanceable = true
+                                prepend references = @./instances.usda@</Instances/Left_front_child3_link>
+                            )
+                            {
+                                rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial> (
+                                    bindMaterialAs = "weakerThanDescendants"
+                                )
+                                quatd xformOp:orient = (1, 0, 0, 0)
+                                double3 xformOp:scale = (1, 1, 1)
+                                double3 xformOp:translate = (0, 0, 0)
+                                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                            }
+
+                            def Sphere "Left_front_site2"
+                            {
+                                float3[] extent = [(-0.005, -0.005, -0.005), (0.005, 0.005, 0.005)]
+                                color3f[] primvars:displayColor = [(1, 1, 0)] (
+                                    interpolation = "constant"
+                                )
+                                int[] primvars:displayColor:indices = None
+                                float[] primvars:displayOpacity = [1] (
+                                    interpolation = "constant"
+                                )
+                                int[] primvars:displayOpacity:indices = None
+                                uniform token purpose = "guide"
+                                double radius = 0.005
+                                quatf xformOp:orient = (1, 0, 0, 0)
+                                float3 xformOp:scale = (1, 1, 1)
+                                double3 xformOp:translate = (0.08037, 0, -0.01)
+                                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                            }
+                        }
+                    }
+                }
+            }
+
+            def Xform "Right_front_link" (
+                prepend apiSchemas = ["IsaacLinkAPI"]
+            )
+            {
+                quatf xformOp:orient = (6.123234e-17, 9.3293326e-18, 0.70710826, -0.7071053)
+                float3 xformOp:scale = (1, 1, 1)
+                double3 xformOp:translate = (0, -0.1877, 0.08725)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+
+                def Xform "Right_front_link" (
+                    prepend apiSchemas = ["MaterialBindingAPI"]
+                    instanceable = true
+                    prepend references = @./instances.usda@</Instances/Right_front_link>
+                )
+                {
+                    rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial> (
+                        bindMaterialAs = "weakerThanDescendants"
+                    )
+                    quatd xformOp:orient = (1, 0, 0, 0)
+                    double3 xformOp:scale = (1, 1, 1)
+                    double3 xformOp:translate = (0, 0, 0)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                }
+
+                def Xform "Right_front_child1_link" (
+                    prepend apiSchemas = ["IsaacLinkAPI"]
+                )
+                {
+                    quatf xformOp:orient = (1, 0, 0, 0)
+                    float3 xformOp:scale = (1, 1, 1)
+                    double3 xformOp:translate = (-0.016285, 0.092933, 0.01)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+
+                    def Xform "Right_front_child1_link" (
+                        prepend apiSchemas = ["MaterialBindingAPI"]
+                        instanceable = true
+                        prepend references = @./instances.usda@</Instances/Right_front_child1_link>
+                    )
+                    {
+                        rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial> (
+                            bindMaterialAs = "weakerThanDescendants"
+                        )
+                        quatd xformOp:orient = (1, 0, 0, 0)
+                        double3 xformOp:scale = (1, 1, 1)
+                        double3 xformOp:translate = (0, 0, 0)
+                        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                    }
+
+                    def Xform "Right_front_child2_link" (
+                        prepend apiSchemas = ["IsaacLinkAPI"]
+                    )
+                    {
+                        quatf xformOp:orient = (1, 0, 0, 0)
+                        float3 xformOp:scale = (1, 1, 1)
+                        double3 xformOp:translate = (0.11063, 0.019387, 0)
+                        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+
+                        def Xform "l22_collision" (
+                            prepend apiSchemas = ["MaterialBindingAPI"]
+                            displayName = ""
+                            instanceable = true
+                            prepend references = @./instances.usda@</Instances/l22_collision>
+                            uiHints = {
+                                string displayName = ""
+                            }
+                        )
+                        {
+                            rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial> (
+                                bindMaterialAs = "weakerThanDescendants"
+                            )
+                            quatd xformOp:orient = (1, 0, 0, 0)
+                            double3 xformOp:scale = (1, 1, 1)
+                            double3 xformOp:translate = (0, 0, 0)
+                            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                        }
+
+                        def Xform "l22_self_collision_2" (
+                            prepend apiSchemas = ["MaterialBindingAPI"]
+                            instanceable = true
+                            prepend references = @./instances.usda@</Instances/l22_self_collision_2>
+                        )
+                        {
+                            rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial_1> (
+                                bindMaterialAs = "weakerThanDescendants"
+                            )
+                            quatd xformOp:orient = (1, 0, 0, 0)
+                            double3 xformOp:scale = (1, 1, 1)
+                            double3 xformOp:translate = (0, 0, 0)
+                            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                        }
+
+                        def Xform "l22_self_collision_5" (
+                            prepend apiSchemas = ["MaterialBindingAPI"]
+                            instanceable = true
+                            prepend references = @./instances.usda@</Instances/l22_self_collision_5>
+                        )
+                        {
+                            rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial_1> (
+                                bindMaterialAs = "weakerThanDescendants"
+                            )
+                            quatd xformOp:orient = (1, 0, 0, 0)
+                            double3 xformOp:scale = (1, 1, 1)
+                            double3 xformOp:translate = (0, 0, 0)
+                            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                        }
+
+                        def Xform "l22_self_collision_6" (
+                            prepend apiSchemas = ["MaterialBindingAPI"]
+                            instanceable = true
+                            prepend references = @./instances.usda@</Instances/l22_self_collision_6>
+                        )
+                        {
+                            rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial_1> (
+                                bindMaterialAs = "weakerThanDescendants"
+                            )
+                            quatd xformOp:orient = (1, 0, 0, 0)
+                            double3 xformOp:scale = (1, 1, 1)
+                            double3 xformOp:translate = (0, 0, 0)
+                            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                        }
+
+                        def Sphere "Right_front_site1"
+                        {
+                            float3[] extent = [(-0.005, -0.005, -0.005), (0.005, 0.005, 0.005)]
+                            color3f[] primvars:displayColor = [(1, 1, 0)] (
+                                interpolation = "constant"
+                            )
+                            int[] primvars:displayColor:indices = None
+                            float[] primvars:displayOpacity = [1] (
+                                interpolation = "constant"
+                            )
+                            int[] primvars:displayOpacity:indices = None
+                            uniform token purpose = "guide"
+                            double radius = 0.005
+                            quatf xformOp:orient = (1, 0, 0, 0)
+                            float3 xformOp:scale = (1, 1, 1)
+                            double3 xformOp:translate = (0, -0.11232, -0.01)
+                            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                        }
+
+                        def Xform "Right_front_child3_link" (
+                            prepend apiSchemas = ["IsaacLinkAPI"]
+                        )
+                        {
+                            quatf xformOp:orient = (1, 0, 0, 0)
+                            float3 xformOp:scale = (1, 1, 1)
+                            double3 xformOp:translate = (-0.018032, -0.17268, 0)
+                            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+
+                            def Xform "Right_front_child3_link" (
+                                prepend apiSchemas = ["MaterialBindingAPI"]
+                                instanceable = true
+                                prepend references = @./instances.usda@</Instances/Right_front_child3_link>
+                            )
+                            {
+                                rel material:binding:physics = </tn__Fudan2026Balance_vNA/Physics/PhysicsMaterial> (
+                                    bindMaterialAs = "weakerThanDescendants"
+                                )
+                                quatd xformOp:orient = (1, 0, 0, 0)
+                                double3 xformOp:scale = (1, 1, 1)
+                                double3 xformOp:translate = (0, 0, 0)
+                                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                            }
+
+                            def Sphere "Right_front_site2"
+                            {
+                                float3[] extent = [(-0.005, -0.005, -0.005), (0.005, 0.005, 0.005)]
+                                color3f[] primvars:displayColor = [(1, 1, 0)] (
+                                    interpolation = "constant"
+                                )
+                                int[] primvars:displayColor:indices = None
+                                float[] primvars:displayOpacity = [1] (
+                                    interpolation = "constant"
+                                )
+                                int[] primvars:displayOpacity:indices = None
+                                uniform token purpose = "guide"
+                                double radius = 0.005
+                                quatf xformOp:orient = (1, 0, 0, 0)
+                                float3 xformOp:scale = (1, 1, 1)
+                                double3 xformOp:translate = (0.08037, 0, -0.01)
+                                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    def Scope "Materials"
+    {
+    }
+
+    def Scope "Physics"
+    {
+        def Material "PhysicsMaterial"
+        {
+        }
+
+        def Material "PhysicsMaterial_1"
+        {
+        }
+    }
+}
+

@@ -1,0 +1,149 @@
+#usda 1.0
+(
+    customLayerData = {
+        string creator = "MuJoCo USD Converter v0.6.1"
+    }
+    defaultPrim = "tn__Fudan2026Balance_vNA"
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    subLayers = [
+        @./physics.usda@
+    ]
+    upAxis = "Z"
+)
+
+over "tn__Fudan2026Balance_vNA"
+{
+    over "Geometry"
+    {
+        over "base_link"
+        {
+            over "Left_rear_link"
+            {
+                over "Left_rear_child1_link"
+                {
+                    over "Left_Wheel_link"
+                    {
+                        over "Left_Wheel_joint" (
+                            prepend apiSchemas = ["PhysxJointAPI"]
+                        )
+                        {
+                        }
+                    }
+
+                    over "Left_rear_child1_joint" (
+                        prepend apiSchemas = ["PhysxJointAPI"]
+                    )
+                    {
+                    }
+                }
+
+                over "Left_rear_joint" (
+                    prepend apiSchemas = ["PhysxJointAPI"]
+                )
+                {
+                }
+            }
+
+            over "Right_rear_link"
+            {
+                over "Right_rear_child1_link"
+                {
+                    over "Right_Wheel_link"
+                    {
+                        over "Right_Wheel_joint" (
+                            prepend apiSchemas = ["PhysxJointAPI"]
+                        )
+                        {
+                        }
+                    }
+
+                    over "Right_rear_child1_joint" (
+                        prepend apiSchemas = ["PhysxJointAPI"]
+                    )
+                    {
+                    }
+                }
+
+                over "Right_rear_joint" (
+                    prepend apiSchemas = ["PhysxJointAPI"]
+                )
+                {
+                }
+            }
+
+            over "Left_front_link"
+            {
+                over "Left_front_child1_link"
+                {
+                    over "Left_front_child2_link"
+                    {
+                        over "Left_front_child3_link"
+                        {
+                            over "Left_front_child3_joint" (
+                                prepend apiSchemas = ["PhysxJointAPI"]
+                            )
+                            {
+                            }
+                        }
+
+                        over "Left_front_child2_joint" (
+                            prepend apiSchemas = ["PhysxJointAPI"]
+                        )
+                        {
+                        }
+                    }
+
+                    over "Left_front_child1_joint" (
+                        prepend apiSchemas = ["PhysxJointAPI"]
+                    )
+                    {
+                    }
+                }
+
+                over "Left_front_joint" (
+                    prepend apiSchemas = ["PhysxJointAPI"]
+                )
+                {
+                }
+            }
+
+            over "Right_front_link"
+            {
+                over "Right_front_child1_link"
+                {
+                    over "Right_front_child2_link"
+                    {
+                        over "Right_front_child3_link"
+                        {
+                            over "Right_front_joint3_joint" (
+                                prepend apiSchemas = ["PhysxJointAPI"]
+                            )
+                            {
+                            }
+                        }
+
+                        over "Right_front_child2_joint" (
+                            prepend apiSchemas = ["PhysxJointAPI"]
+                        )
+                        {
+                        }
+                    }
+
+                    over "Right_front_child1_joint" (
+                        prepend apiSchemas = ["PhysxJointAPI"]
+                    )
+                    {
+                    }
+                }
+
+                over "Right_front_joint" (
+                    prepend apiSchemas = ["PhysxJointAPI"]
+                )
+                {
+                }
+            }
+        }
+    }
+}
+
